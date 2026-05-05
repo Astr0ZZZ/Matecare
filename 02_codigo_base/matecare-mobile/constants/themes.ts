@@ -116,7 +116,7 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
       chat: 'chatbubble-ellipses',
       calendar: 'document-text',
       profile: 'shield',
-      mission: 'scroll', // Requiere mapeo o uso de FontAwesome/etc
+      mission: 'document-text-outline',
       recommendation: 'flame',
       phaseIndicator: 'flame'
     },
@@ -155,7 +155,7 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
       chat: 'chatbubble-outline',
       calendar: 'calendar-clear-outline',
       profile: 'person-outline',
-      mission: 'sword',
+      mission: 'shield-half-outline',
       recommendation: 'book-outline',
       phaseIndicator: 'moon-outline'
     },

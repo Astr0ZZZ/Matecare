@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { THEMES, ThemeDefinition, ThemeType } from '../constants/themes';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ThemeContextType {
   theme: ThemeDefinition;
@@ -11,37 +10,15 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Simplificado: Sin AsyncStorage para evitar errores de "Native module is null" en Expo Go
   const [activeTheme, setActiveTheme] = useState<ThemeType>('TACTICAL');
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Cargar el tema guardado al iniciar
-  useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem('MATECARE_THEME');
-        if (savedTheme && THEMES[savedTheme as ThemeType]) {
-          setActiveTheme(savedTheme as ThemeType);
-        }
-      } catch (e) {
-        console.error('Error loading theme:', e);
-      } finally {
-        setIsLoaded(true);
-      }
-    };
-    loadTheme();
-  }, []);
-
-  const setTheme = async (type: ThemeType) => {
+  const setTheme = (type: ThemeType) => {
     setActiveTheme(type);
-    try {
-      await AsyncStorage.setItem('MATECARE_THEME', type);
-    } catch (e) {
-      console.error('Error saving theme:', e);
-    }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme: THEMES[activeTheme], setTheme, isLoaded }}>
+    <ThemeContext.Provider value={{ theme: THEMES[activeTheme], setTheme, isLoaded: true }}>
       {children}
     </ThemeContext.Provider>
   );
