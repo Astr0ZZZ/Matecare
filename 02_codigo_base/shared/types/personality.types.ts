@@ -1,0 +1,5 @@
+export type PersonalityType = 'INTROVERTED' | 'EXTROVERTED' | 'AMBIVERT'
+export type ConflictStyle   = 'AVOIDANT' | 'DIRECT' | 'PASSIVE'
+export type AffectionStyle  = 'PHYSICAL' | 'VERBAL' | 'ACTS' | 'QUALITY'
+export type SocialLevel     = 'LOW' | 'MEDIUM' | 'HIGH'
+export type PrivacyLevel    = 'VERY_PRIVATE' | 'MODERATE' | 'OPEN'

@@ -1,0 +1,16 @@
+Colores correctos a usar en la app 
+
+Aquí tienes el desarrollo definitivo de la paleta **"Vitalidad Equilibrada"** con las funciones exactas para la interfaz de la aplicación:
+### Desarrollo de la Paleta "Vitalidad Equilibrada"
+### 1. Fondo Principal: Crema Suave (#F9F5F0)
+ * **Función:** Reemplaza el blanco puro para ofrecer una experiencia visual más descansada.
+ * **Efecto:** Es un tono cálido y acogedor que reduce la fatiga visual, evocando la sensación de leer un manual en papel de alta calidad.
+### 2. Color de Calma y Base: Verde Botánica Profundo (#1A531A)
+ * **Función:** Se utiliza como el color de "estado normal" o para representar las fases de menor energía física.
+ * **Efecto:** Transmite una sensación de cuidado profundo, enraizamiento y sofisticación orgánica. Al visualizarlo, se identifica inmediatamente como un momento destinado a la introspección, la salud y la calma.
+### 3. Color de Energía y Acción: Mostaza Dorado (#B57D2C)
+ * **Función:** Actúa como el color de acento principal para las fases de alta energía y para resaltar las "Misiones" o acciones concretas.
+ * **Efecto:** Proyecta confianza, vitalidad y una acción deliberada. Es la señal visual para identificar los momentos ideales para proponer planes, ser proactivo y tomar la iniciativa.
+### 4. Texto y Estructura: Gris Piedra (#95A5A6)
+ * **Función:** Se aplica a todo el texto principal, bordes de iconos y divisiones de la interfaz.
+ * **Efecto:** Al evitar el negro puro, mantiene una legibilidad profesional y neutra que resulta mucho más suave sobre el fondo crema.

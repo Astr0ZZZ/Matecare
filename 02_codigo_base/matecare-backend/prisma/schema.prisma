@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  plan          Plan      @default(FREE)
+  createdAt     DateTime  @default(now())
+
+  partnerProfile  PartnerProfile?
+  aiInteractions  AIInteraction[]
+  notifications   Notification[]
+  missions        Mission[]
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+}
+
+model PartnerProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+
+  // Datos del ciclo
+  cycleLength      Int       // días (ej: 28)
+  periodDuration   Int       // días (ej: 5)
+  lastPeriodDate   DateTime
+  isIrregular      Boolean   @default(false)
+  irregularRange   Int?      // variación en días si es irregular
+
+  // Perfil de personalidad
+  personalityType  PersonalityType
+  socialLevel      SocialLevel
+  privacyLevel     PrivacyLevel
+  conflictStyle    ConflictStyle
+  affectionStyle   AffectionStyle
+
+  cycleLogs        CycleLog[]
+  updatedAt        DateTime  @updatedAt
+}
+
+enum PersonalityType {
+  INTROVERTED
+  EXTROVERTED
+  AMBIVERT
+}
+
+enum SocialLevel {
+  LOW     // poco uso de redes, vida privada
+  MEDIUM
+  HIGH    // muy activa en redes, social
+}
+
+enum PrivacyLevel {
+  VERY_PRIVATE
+  MODERATE
+  OPEN
+}
+
+enum ConflictStyle {
+  AVOIDANT    // evita conflictos, necesita tiempo
+  DIRECT      // prefiere hablar de frente
+  PASSIVE     // lo deja pasar pero lo siente
+}
+
+enum AffectionStyle {
+  PHYSICAL    // contacto físico
+  VERBAL      // palabras de afirmación
+  ACTS        // actos de servicio
+  QUALITY     // tiempo de calidad
+}
+
+model CycleLog {
+  id             String    @id @default(uuid())
+  profileId      String
+  profile        PartnerProfile @relation(fields: [profileId], references: [id])
+  logDate        DateTime
+  phase          CyclePhase
+  dayOfCycle     Int
+  notes          String?
+}
+
+enum CyclePhase {
+  MENSTRUAL     // días 1-5
+  FOLLICULAR    // días 6-13
+  OVULATION     // días 14-16
+  LUTEAL        // días 17-28
+}
+
+model AIInteraction {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  userInput     String?   // null si fue automática (notif)
+  aiResponse    String
+  phaseContext  CyclePhase
+  promptTokens  Int
+  createdAt     DateTime  @default(now())
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  message       String
+  type          NotifType
+  scheduledAt   DateTime
+  sentAt        DateTime?
+  opened        Boolean   @default(false)
+}
+
+enum NotifType {
+  PHASE_CHANGE    // cambió de fase
+  DAILY_TIP       // consejo del día
+  PERIOD_SOON     // aviso 2 días antes
+  CUSTOM          // enviada por el usuario
+}
+
+model Mission {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  title         String
+  description   String?
+  progress      Int       @default(0) // 0 to 100
+  isCompleted   Boolean   @default(false)
+  phaseContext  CyclePhase
+  category      String?   // ej: "Conexión", "Energía", "Espacio"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

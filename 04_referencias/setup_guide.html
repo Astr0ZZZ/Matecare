@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CycleCoach — Setup Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0D0D14;--surface:#16161F;--elevated:#1E1E2A;--border:rgba(255,255,255,0.1);
+    --primary:#C8A951;--pd:rgba(200,169,81,0.12);--green:#27AE8F;--gd:rgba(39,174,143,0.12);
+    --red:#C0392B;--rd:rgba(192,57,43,0.12);--purple:#8B5CF6;--pud:rgba(139,92,246,0.12);
+    --orange:#F59E0B;--od:rgba(245,158,11,0.12);--blue:#3B82F6;--bd:rgba(59,130,246,0.12);
+    --text:#F0F0F5;--text2:#AAABBF;--text3:#6B6B80;
+    --mono:'JetBrains Mono',monospace;--sans:'Space Grotesk',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;}
+  nav{position:sticky;top:0;z-index:100;background:rgba(13,13,20,0.93);backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  nav .logo{font-weight:700;font-size:14px;color:var(--primary);margin-right:12px;white-space:nowrap;}
+  nav a{color:var(--text3);text-decoration:none;font-size:12px;font-weight:500;padding:3px 8px;border-radius:5px;transition:.15s;white-space:nowrap;}
+  nav a:hover{color:var(--text);background:var(--elevated);}
+  .wrap{max-width:900px;margin:0 auto;padding:36px 20px 80px;}
+  section{margin-bottom:56px;}
+  h1{font-size:28px;font-weight:700;}
+  h2{font-size:18px;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+  h3{font-size:14px;font-weight:600;margin-bottom:8px;}
+  p,li{color:var(--text2);font-size:13px;line-height:1.7;}
+  ul{padding-left:18px;}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;
+    border-radius:100px;letter-spacing:.3px;white-space:nowrap;}
+  .pill::before{content:'●';font-size:7px;}
+  .free{background:var(--gd);color:var(--green);}
+  .paid{background:var(--od);color:var(--orange);}
+  .critical{background:var(--rd);color:var(--red);}
+  .nice{background:var(--pud);color:var(--purple);}
+  .info{background:var(--pd);color:var(--primary);}
+
+  /* SERVICE CARDS */
+  .svc{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:580px){.svc{grid-template-columns:1fr;}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;position:relative;}
+  .card.red-border{border-color:rgba(192,57,43,0.35);}
+  .card.green-border{border-color:rgba(39,174,143,0.3);}
+  .card.yellow-border{border-color:rgba(245,158,11,0.3);}
+  .card.purple-border{border-color:rgba(139,92,246,0.3);}
+  .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .card-name{font-weight:700;font-size:14px;}
+  .card-url{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px;}
+  .card-body{font-size:12.5px;color:var(--text2);line-height:1.6;}
+  .card-step{margin-top:10px;padding:8px 10px;background:var(--elevated);border-radius:8px;
+    font-family:var(--mono);font-size:11px;color:var(--green);}
+  .card-warn{margin-top:8px;padding:8px 10px;background:var(--rd);border-radius:8px;
+    font-size:11.5px;color:var(--red);}
+  .card-cost{margin-top:10px;font-size:12px;color:var(--text3);}
+  .card-cost strong{color:var(--primary);}
+
+  /* CHECKLIST */
+  .check-list{display:flex;flex-direction:column;gap:8px;}
+  .check-item{display:flex;gap:12px;padding:12px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;align-items:flex-start;}
+  .check-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+  .check-box.done{background:var(--gd);border-color:var(--green);color:var(--green);}
+  .check-box.todo{border-color:var(--text3);}
+  .check-box.urgent{border-color:var(--red);}
+  .check-text{flex:1;}
+  .check-title{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .check-desc{font-size:12px;color:var(--text2);}
+
+  /* ENV TABLE */
+  pre{background:#0A0A10;border:1px solid var(--border);border-radius:10px;padding:14px;
+    overflow-x:auto;font-family:var(--mono);font-size:11.5px;color:#A8D8A8;line-height:1.7;}
+  .c{color:var(--text3);}
+  .k{color:var(--orange);}
+  .v{color:#A8D8A8;}
+
+  /* WEAK POINTS */
+  .weak{display:flex;gap:12px;padding:14px 16px;border-radius:10px;margin-bottom:10px;border:1px solid;}
+  .weak.high{background:rgba(192,57,43,0.06);border-color:rgba(192,57,43,0.25);}
+  .weak.med{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.25);}
+  .weak.low{background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.2);}
+  .weak-icon{font-size:20px;flex-shrink:0;}
+  .weak-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+  .weak-body{font-size:12.5px;color:var(--text2);}
+  .weak-action{margin-top:6px;font-size:12px;color:var(--green);font-style:italic;}
+
+  /* COST TABLE */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--text3);font-weight:600;font-size:10px;letter-spacing:.8px;
+    text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text2);}
+  td:first-child{color:var(--text);font-weight:500;}
+  tr:last-child td{border-bottom:none;}
+  .total-row td{color:var(--primary);font-weight:700;border-top:1px solid var(--border);padding-top:10px;}
+
+  hr{border:none;border-top:1px solid var(--border);margin:32px 0;}
+  .banner{background:linear-gradient(135deg,rgba(200,169,81,0.1),rgba(139,92,246,0.08));
+    border:1px solid rgba(200,169,81,0.2);border-radius:14px;padding:22px;margin-bottom:28px;}
+</style>
+</head>
+<body>
+<nav>
+  <span class="logo">🚴 CycleCoach</span>
+  <a href="#cuentas">Cuentas</a>
+  <a href="#env">Variables</a>
+  <a href="#checklist">Checklist</a>
+  <a href="#debiles">Puntos débiles</a>
+  <a href="#costos">Costos</a>
+  <a href="#legal">Legal</a>
+</nav>
+
+<div class="wrap">
+
+  <div class="banner">
+    <h1>Setup Guide + Auditoría de Puntos Débiles</h1>
+    <p style="margin-top:6px;color:var(--text2);">Stack decisión final: <strong style="color:var(--primary)">React Native + Expo · Node.js · Supabase · Railway · Stripe</strong></p>
+  </div>
+
+  <!-- CUENTAS -->
+  <section id="cuentas">
+    <h2>01 — Cuentas que necesitas crear</h2>
+    <p style="margin-bottom:18px;">Organizadas por prioridad. Las marcadas <span class="pill critical">Bloqueante</span> sin ellas no puedes ni empezar.</p>
+
+    <h3 style="margin-bottom:12px;">🔴 Bloqueantes — día 1</h3>
+    <div class="svc">
+
+      <div class="card red-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Anthropic Console</div>
+            <div class="card-url">console.anthropic.com</div>
+          </div>
+          <span class="pill critical">Bloqueante</span>
+        </div>
+        <div class="card-body">API key para Claude. El corazón del producto. Sin esto no hay IA.</div>
+        <div class="card-step">→ console.anthropic.com → API Keys → Create Key<br>→ Guarda como ANTHROPIC_API_KEY</div>
+        <div class="card-cost">Plan: <strong>Pay-as-you-go</strong> · No hay fee mensual · Solo tokens usados</div>
+        <div class="card-warn">⚠️ Pon límite de gasto ($10/mes) mientras desarrollas para no sorpresas</div>
+      </div>
+
+      <div class="card red-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Supabase</div>
+            <div class="card-url">supabase.com</div>
+          </div>
+          <span class="pill critical">Bloqueante</span>
+        </div>
+        <div class="card-body">Base de datos PostgreSQL + Auth + Storage. Free tier muy generoso para MVP.</div>
+        <div class="card-step">→ supabase.com → New Project<br>→ Guarda: URL + anon key + service_role key<br>→ Settings → Database → Connection string</div>
+        <div class="card-cost">Free: <strong>500MB BD, 50MB storage, 50k MAU</strong> · Pro: $25/mes si escala</div>
+      </div>
+
+      <div class="card red-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Stripe</div>
+            <div class="card-url">dashboard.stripe.com</div>
+          </div>
+          <span class="pill critical">Bloqueante</span>
+        </div>
+        <div class="card-body">Pagos y suscripciones. Empieza en modo test — no necesitas cuenta bancaria para desarrollar.</div>
+        <div class="card-step">→ stripe.com → Create account<br>→ Developers → API Keys → Secret key<br>→ Products → Crear precio mensual ($3 USD recurrente)<br>→ Webhooks → Add endpoint → seleccionar eventos</div>
+        <div class="card-cost"><strong>2.9% + $0.30</strong> por transacción · Sin fee mensual</div>
+        <div class="card-warn">⚠️ Activa modo TEST primero. Las claves test empiezan con sk_test_</div>
+      </div>
+
+      <div class="card red-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Railway</div>
+            <div class="card-url">railway.app</div>
+          </div>
+          <span class="pill critical">Bloqueante</span>
+        </div>
+        <div class="card-body">Hosting del backend Node.js + Redis. Deploy automático desde GitHub. El más simple para este stack.</div>
+        <div class="card-step">→ railway.app → Login con GitHub<br>→ New Project → Deploy from GitHub repo<br>→ Add Plugin → Redis<br>→ Variables → pegar el .env completo</div>
+        <div class="card-cost">Hobby: <strong>$5/mes</strong> · Pro: $20/mes · Redis incluido en el plan</div>
+      </div>
+
+    </div>
+
+    <h3 style="margin:20px 0 12px;">🟡 Necesarias — semana 1</h3>
+    <div class="svc">
+
+      <div class="card yellow-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Expo (EAS)</div>
+            <div class="card-url">expo.dev</div>
+          </div>
+          <span class="pill paid">Necesaria</span>
+        </div>
+        <div class="card-body">Build + distribución de la app React Native. EAS Build compila para iOS y Android en la nube sin Mac local (para iOS sí necesitarás cuenta Apple eventualmente).</div>
+        <div class="card-step">→ expo.dev → Create account<br>→ npm install -g eas-cli<br>→ eas login → eas build:configure</div>
+        <div class="card-cost">Free: 30 builds/mes · Producción: <strong>$29/mes</strong> (EAS Production)</div>
+      </div>
+
+      <div class="card yellow-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Google Firebase</div>
+            <div class="card-url">console.firebase.google.com</div>
+          </div>
+          <span class="pill free">Gratis</span>
+        </div>
+        <div class="card-body">FCM para push notifications Android (y como fallback iOS). Aunque uses Expo Notifications, por debajo usa FCM.</div>
+        <div class="card-step">→ console.firebase.google.com → New project<br>→ Project Settings → Cloud Messaging<br>→ Guarda el Server Key como FCM_SERVER_KEY</div>
+        <div class="card-cost"><strong>Gratis</strong> para push notifications. Sin límite práctico.</div>
+      </div>
+
+      <div class="card yellow-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">GitHub</div>
+            <div class="card-url">github.com</div>
+          </div>
+          <span class="pill free">Gratis</span>
+        </div>
+        <div class="card-body">Control de versiones + triggers de deploy en Railway. Crea 2 repos: <code>cyclecoach-app</code> (RN) y <code>cyclecoach-backend</code> (Node).</div>
+        <div class="card-step">→ 2 repos privados<br>→ Conectar cyclecoach-backend a Railway<br>→ Cada push a main → auto-deploy</div>
+        <div class="card-cost"><strong>Gratis</strong> repos privados ilimitados</div>
+      </div>
+
+      <div class="card yellow-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Sentry</div>
+            <div class="card-url">sentry.io</div>
+          </div>
+          <span class="pill free">Gratis</span>
+        </div>
+        <div class="card-body">Monitoreo de errores en tiempo real. Imprescindible para saber qué falla en producción sin que el usuario te lo diga.</div>
+        <div class="card-step">→ sentry.io → Create account → New Project<br>→ Uno para Node.js, otro para React Native<br>→ Guarda el DSN de cada uno</div>
+        <div class="card-cost">Free: <strong>5k errores/mes</strong> · Suficiente para MVP</div>
+      </div>
+
+    </div>
+
+    <h3 style="margin:20px 0 12px;">🟣 Opcionales / Fallback IA</h3>
+    <div class="svc">
+
+      <div class="card purple-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">OpenAI Platform</div>
+            <div class="card-url">platform.openai.com</div>
+          </div>
+          <span class="pill nice">Fallback IA</span>
+        </div>
+        <div class="card-body">GPT-4o mini como fallback nivel 2 del AIRouter. Si Claude falla, el usuario no ve error.</div>
+        <div class="card-step">→ platform.openai.com → API Keys → Create<br>→ Guarda como OPENAI_API_KEY<br>→ Pon límite de $5/mes</div>
+        <div class="card-cost">Pay-as-you-go · GPT-4o mini: <strong>$0.15/1M tokens input</strong></div>
+      </div>
+
+      <div class="card purple-border">
+        <div class="card-header">
+          <div>
+            <div class="card-name">Google AI Studio</div>
+            <div class="card-url">aistudio.google.com</div>
+          </div>
+          <span class="pill nice">Fallback IA</span>
+        </div>
+        <div class="card-body">Gemini Flash para notificaciones automáticas y fallback nivel 3. El más barato con diferencia.</div>
+        <div class="card-step">→ aistudio.google.com → Get API Key<br>→ Guarda como GEMINI_API_KEY</div>
+        <div class="card-cost">Gemini Flash: <strong>$0.075/1M tokens</strong> · Free tier: 15 req/min</div>
+      </div>
+
+    </div>
+
+    <h3 style="margin:20px 0 12px;">🍎 Para publicar en App Store (más adelante)</h3>
+    <div class="card" style="border-color:rgba(59,130,246,0.25);">
+      <div class="card-header">
+        <div>
+          <div class="card-name">Apple Developer Program</div>
+          <div class="card-url">developer.apple.com</div>
+        </div>
+        <span class="pill info">Antes de publicar</span>
+      </div>
+      <div class="card-body">Necesario para publicar en App Store. También necesario para push notifications en iOS en producción (APNs). <strong>No lo necesitas para desarrollar</strong> — solo para publicar.</div>
+      <div class="card-step">→ developer.apple.com → Enroll<br>→ Necesitas: DUNS number (empresa) o cuenta personal ($99/año)<br>→ Requiere revisión de Apple → 24-48h</div>
+      <div class="card-cost"><strong>$99 USD/año</strong> · Renovar anualmente o la app se cae de la store</div>
+      <div class="card-warn">⚠️ Para Chile: puedes vender apps en App Store sin empresa constituida, con cuenta personal de desarrollador.</div>
+    </div>
+  </section>
+
+  <!-- ENV VARIABLES -->
+  <section id="env">
+    <h2>02 — Variables de entorno completas y unificadas</h2>
+    <p style="margin-bottom:16px;">Este es el <strong>.env canónico</strong> que reemplaza y unifica los dos PDFs más el env.json del Flutter (que se elimina).</p>
+
+    <pre><span class="c"># ── BASE DE DATOS ──────────────────────────────────────────</span>
+<span class="k">DATABASE_URL</span>=<span class="v">"postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres"</span>
+<span class="k">DIRECT_URL</span>=<span class="v">"postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres"</span>  <span class="c"># para migraciones Prisma</span>
+
+<span class="c"># ── SUPABASE ───────────────────────────────────────────────</span>
+<span class="k">SUPABASE_URL</span>=<span class="v">"https://[ref].supabase.co"</span>
+<span class="k">SUPABASE_ANON_KEY</span>=<span class="v">"eyJ..."</span>
+<span class="k">SUPABASE_SERVICE_ROLE_KEY</span>=<span class="v">"eyJ..."</span>    <span class="c"># solo backend, NUNCA al cliente</span>
+
+<span class="c"># ── CACHE ──────────────────────────────────────────────────</span>
+<span class="k">REDIS_URL</span>=<span class="v">"redis://default:[password]@[host].railway.internal:6379"</span>
+
+<span class="c"># ── IA — PRIMARIA ──────────────────────────────────────────</span>
+<span class="k">ANTHROPIC_API_KEY</span>=<span class="v">"sk-ant-..."</span>
+
+<span class="c"># ── IA — FALLBACKS ─────────────────────────────────────────</span>
+<span class="k">OPENAI_API_KEY</span>=<span class="v">"sk-..."</span>
+<span class="k">GEMINI_API_KEY</span>=<span class="v">"AIza..."</span>
+
+<span class="c"># ── PAGOS ──────────────────────────────────────────────────</span>
+<span class="k">STRIPE_SECRET_KEY</span>=<span class="v">"sk_live_..."</span>              <span class="c"># sk_test_... en desarrollo</span>
+<span class="k">STRIPE_WEBHOOK_SECRET</span>=<span class="v">"whsec_..."</span>
+<span class="k">STRIPE_PRICE_ID_MONTHLY</span>=<span class="v">"price_..."</span>          <span class="c"># ID del precio $3/mes en Stripe dashboard</span>
+<span class="k">STRIPE_PRICE_ID_ANNUAL</span>=<span class="v">"price_..."</span>           <span class="c"># Precio anual si lo ofreces</span>
+
+<span class="c"># ── AUTH ───────────────────────────────────────────────────</span>
+<span class="k">JWT_SECRET</span>=<span class="v">"[random 64 chars]"</span>               <span class="c"># openssl rand -base64 64</span>
+<span class="k">JWT_EXPIRES_IN</span>=<span class="v">"7d"</span>
+
+<span class="c"># ── PUSH NOTIFICATIONS ─────────────────────────────────────</span>
+<span class="k">EXPO_ACCESS_TOKEN</span>=<span class="v">"expo_..."</span>                 <span class="c"># desde expo.dev → Access Tokens</span>
+
+<span class="c"># ── APP ────────────────────────────────────────────────────</span>
+<span class="k">PORT</span>=<span class="v">3000</span>
+<span class="k">NODE_ENV</span>=<span class="v">"production"</span>                         <span class="c"># "development" local</span>
+<span class="k">FRONTEND_URL</span>=<span class="v">"exp://..."</span>                      <span class="c"># URL de la app Expo para CORS</span>
+
+<span class="c"># ── MONITOREO ──────────────────────────────────────────────</span>
+<span class="k">SENTRY_DSN</span>=<span class="v">"https://...@sentry.io/..."</span></pre>
+
+    <div style="margin-top:14px;padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:12.5px;color:var(--text2);">
+      ⚠️ <strong style="color:var(--orange)">NUNCA</strong> subas el <code>.env</code> a GitHub. Agrega <code>.env</code> al <code>.gitignore</code> desde el día 1. Usa Railway Variables para el backend en producción (no archivos .env en el servidor).
+    </div>
+  </section>
+
+  <!-- CHECKLIST -->
+  <section id="checklist">
+    <h2>03 — Checklist de inicio (orden correcto)</h2>
+    <div class="check-list">
+
+      <div class="check-item">
+        <div class="check-box todo urgent">1</div>
+        <div class="check-text">
+          <div class="check-title">Crear cuenta Supabase + nuevo proyecto</div>
+          <div class="check-desc">Guardar las 3 credenciales: URL, anon_key, service_role_key. Ir a Settings → Database → copiar connection string para Prisma.</div>
+        </div>
+        <span class="pill free">Gratis</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo urgent">2</div>
+        <div class="check-text">
+          <div class="check-title">Crear cuenta Anthropic + API Key + límite de gasto</div>
+          <div class="check-desc">console.anthropic.com. Pon un spending limit de $10/mes en Settings → Billing durante desarrollo.</div>
+        </div>
+        <span class="pill paid">Pay-as-you-go</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo urgent">3</div>
+        <div class="check-text">
+          <div class="check-title">Crear repos GitHub: cyclecoach-app + cyclecoach-backend</div>
+          <div class="check-desc">Ambos privados. Agregar .gitignore con node_modules, .env, dist desde el inicio.</div>
+        </div>
+        <span class="pill free">Gratis</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo urgent">4</div>
+        <div class="check-text">
+          <div class="check-title">Inicializar cyclecoach-backend (Node + TypeScript + Prisma)</div>
+          <div class="check-desc"><code>npm init · tsc --init · npx prisma init</code>. Copiar el schema del PDF de arquitectura. Ejecutar <code>prisma migrate dev --name init</code>.</div>
+        </div>
+        <span class="pill free">Gratis</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo urgent">5</div>
+        <div class="check-text">
+          <div class="check-title">Crear cuenta Railway + conectar repo backend + plugin Redis</div>
+          <div class="check-desc">New Project → Deploy from GitHub → seleccionar cyclecoach-backend. Add Plugin → Redis. Copiar las variables de entorno.</div>
+        </div>
+        <span class="pill paid">$5/mes</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo">6</div>
+        <div class="check-text">
+          <div class="check-title">Crear cuenta Stripe en modo TEST + producto + precio</div>
+          <div class="check-desc">Products → Add product "CycleCoach Premium" → Add price $3 USD recurrente mensual. Copiar el Price ID. Configurar webhook para localhost con Stripe CLI.</div>
+        </div>
+        <span class="pill free">Gratis en test</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo">7</div>
+        <div class="check-text">
+          <div class="check-title">Crear proyecto Expo + inicializar app React Native</div>
+          <div class="check-desc"><code>npx create-expo-app cyclecoach-app --template</code>. Instalar dependencias base. Configurar eas.json para builds.</div>
+        </div>
+        <span class="pill free">Gratis (dev)</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo">8</div>
+        <div class="check-text">
+          <div class="check-title">Crear proyecto Firebase + habilitar Cloud Messaging</div>
+          <div class="check-desc">Solo necesario para push notifications en producción. Puedes dejarlo para semana 7 del roadmap original.</div>
+        </div>
+        <span class="pill free">Gratis</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo">9</div>
+        <div class="check-text">
+          <div class="check-title">Crear cuenta Sentry + 2 proyectos (Node + React Native)</div>
+          <div class="check-desc">Instalar @sentry/node y @sentry/react-native. Guardar los DSN de cada proyecto.</div>
+        </div>
+        <span class="pill free">Gratis</span>
+      </div>
+
+      <div class="check-item">
+        <div class="check-box todo">10</div>
+        <div class="check-text">
+          <div class="check-title">OpenAI + Gemini keys (fallbacks)</div>
+          <div class="check-desc">Pueden esperar a tener el AIRouter implementado. No son bloqueantes para el MVP.</div>
+        </div>
+        <span class="pill nice">Semana 3+</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PUNTOS DÉBILES -->
+  <section id="debiles">
+    <h2>04 — Auditoría de puntos débiles</h2>
+    <p style="margin-bottom:20px;">Ordenados por riesgo real para el producto. No solo código — también negocio, legal y operación.</p>
+
+    <h3 style="margin-bottom:12px; color:var(--red);">🔴 Riesgo alto</h3>
+
+    <div class="weak high">
+      <div class="weak-icon">🔐</div>
+      <div>
+        <div class="weak-title">No hay auth diseñada para el flujo correcto</div>
+        <div class="weak-body">El PDF muestra endpoints <code>/api/auth/register</code> y <code>/api/auth/login</code>, pero con Supabase lo correcto es usar <strong>Supabase Auth directamente desde el cliente</strong> — no pasar por tu backend para auth. El backend solo necesita verificar el JWT de Supabase en cada request. Mezclar auth propia + Supabase crea superficie de ataque innecesaria.</div>
+        <div class="weak-action">→ Usar <code>supabase.auth.signUp()</code> en la app. Backend solo hace: <code>supabase.auth.getUser(token)</code> para verificar.</div>
+      </div>
+    </div>
+
+    <div class="weak high">
+      <div class="weak-icon">⚖️</div>
+      <div>
+        <div class="weak-title">Privacidad y datos de salud — riesgo legal serio</div>
+        <div class="weak-body">CycleCoach procesa datos del ciclo menstrual de una tercera persona (la pareja) sin su consentimiento explícito. En Europa esto es dato de salud bajo GDPR (Art. 9). En Chile, la Ley 19.628 tiene protección similar. El problema: la pareja no tiene cuenta en la app, no consiente nada, pero sus datos están en tu BD.<br><br>No es bloqueante para MVP, pero sí para lanzamiento público.</div>
+        <div class="weak-action">→ Short-term: añadir disclaimer claro en onboarding ("La información que ingreses no debe incluir datos identificables de terceros"). Long-term: un flujo de "pareja invitada" que consiente.</div>
+      </div>
+    </div>
+
+    <div class="weak high">
+      <div class="weak-icon">💸</div>
+      <div>
+        <div class="weak-title">Sin rate limiting en los endpoints de IA</div>
+        <div class="weak-body">Un usuario malicioso (o un bug en la app) puede hacer cientos de requests a <code>/api/ai/chat</code> y arruinarte el presupuesto de tokens en horas. El AIRouter no tiene límite de llamadas por usuario/día.</div>
+        <div class="weak-action">→ Añadir middleware de rate limit: express-rate-limit · 20 mensajes/día para FREE, 100/día para PREMIUM. Guardar contador en Redis.</div>
+      </div>
+    </div>
+
+    <div class="weak high">
+      <div class="weak-icon">🔑</div>
+      <div>
+        <div class="weak-title">El env.json estaba en el repo Flutter</div>
+        <div class="weak-body">El archivo <code>cyclecoach/env.json</code> tenía claves reales (o placeholders) commiteadas al código. Si alguna de esas claves fue real, está comprometida.</div>
+        <div class="weak-action">→ Rotar TODAS las claves que hayan estado en ese archivo. Eliminar env.json del tracking: <code>git rm --cached env.json</code>. Agregar a .gitignore inmediatamente.</div>
+      </div>
+    </div>
+
+    <h3 style="margin:20px 0 12px; color:var(--orange);">🟡 Riesgo medio</h3>
+
+    <div class="weak med">
+      <div class="weak-icon">📊</div>
+      <div>
+        <div class="weak-title">Sin analytics — no sabrás qué funciona</div>
+        <div class="weak-body">No hay plan de métricas. ¿Cuántos usuarios completan el onboarding? ¿Cuántos convierten a premium? ¿Qué fases generan más chats? Sin estos datos, iterar es adivinar.</div>
+        <div class="weak-action">→ Integrar PostHog (open source, free tier generoso) desde el día 1. Solo 5-6 eventos clave: onboarding_completed, chat_sent, premium_converted, phase_changed.</div>
+      </div>
+    </div>
+
+    <div class="weak med">
+      <div class="weak-icon">🧪</div>
+      <div>
+        <div class="weak-title">cycleEngine sin tests unitarios</div>
+        <div class="weak-body">El cálculo de fases es el núcleo científico del producto. Un bug aquí (ej: calcular mal la ovulación) hace que todos los consejos sean incorrectos. El PDF dice "con tests unitarios" pero no hay tests.</div>
+        <div class="weak-action">→ 10-15 tests unitarios para cycleEngine.service.ts cubriendo ciclos regulares, irregulares, y bordes (ciclo de 21 días, 35 días, día 1, último día).</div>
+      </div>
+    </div>
+
+    <div class="weak med">
+      <div class="weak-icon">🔄</div>
+      <div>
+        <div class="weak-title">Sin manejo de refresh token en la app</div>
+        <div class="weak-body">El PDF menciona <code>/api/auth/refresh</code> pero no hay lógica de renovación automática. Cuando el JWT expire (7 días), el usuario verá errores 401 sin entender por qué.</div>
+        <div class="weak-action">→ Usar el auto-refresh de Supabase client SDK — lo maneja automáticamente si usas supabase.auth en lugar de JWT propio.</div>
+      </div>
+    </div>
+
+    <div class="weak med">
+      <div class="weak-icon">📱</div>
+      <div>
+        <div class="weak-title">Deep linking no definido</div>
+        <div class="weak-body">Las push notifications del cron llevan datos <code>{ screen: 'chat', full: recommendation }</code>, pero no hay configuración de deep linking en la app que maneje esta navegación cuando la app está cerrada.</div>
+        <div class="weak-action">→ Configurar Expo Linking desde el inicio. Sin esto, las notificaciones abren la app pero no navegan a la pantalla correcta.</div>
+      </div>
+    </div>
+
+    <h3 style="margin:20px 0 12px; color:var(--blue);">🔵 A tener en cuenta</h3>
+
+    <div class="weak low">
+      <div class="weak-icon">🌐</div>
+      <div>
+        <div class="weak-title">Zona horaria del cron</div>
+        <div class="weak-body">El cron corre a las "8:00 AM hora del servidor" (Railway en US). Si tus usuarios son chilenos, recibirán la notificación a las 4:00 AM (CLT = UTC-4). Necesitas zona horaria por usuario.</div>
+        <div class="weak-action">→ Guardar timezone del usuario en el perfil. Usar <code>node-cron</code> con timezone o procesar por zona horaria agrupando usuarios.</div>
+      </div>
+    </div>
+
+    <div class="weak low">
+      <div class="weak-icon">🔒</div>
+      <div>
+        <div class="weak-title">Supabase RLS (Row Level Security) no mencionada</div>
+        <div class="weak-body">Con Supabase, si no configuras RLS, cualquier usuario autenticado puede leer los datos de otros usuarios directamente desde el cliente con la anon key.</div>
+        <div class="weak-action">→ Habilitar RLS en todas las tablas desde el inicio. Política básica: <code>user_id = auth.uid()</code> en SELECT/UPDATE/DELETE.</div>
+      </div>
+    </div>
+
+    <div class="weak low">
+      <div class="weak-icon">📋</div>
+      <div>
+        <div class="weak-title">Onboarding: P4 y P5 del quiz son redundantes</div>
+        <div class="weak-body">Las preguntas sobre "presencia en redes sociales" y "nivel de privacidad" son conceptualmente similares y el modelo de datos las guarda como <code>socialLevel</code> y <code>privacyLevel</code> por separado, pero el prompt de IA actual no usa <code>socialLevel</code> — solo <code>privacyLevel</code>.</div>
+        <div class="weak-action">→ Eliminar una de las dos preguntas del onboarding o fusionarlas. Menos fricción en onboarding = más completions.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COSTOS -->
+  <section id="costos">
+    <h2>05 — Costos reales por etapa</h2>
+
+    <h3 style="margin-bottom:10px;">Fase de desarrollo (0 usuarios reales)</h3>
+    <table>
+      <thead><tr><th>Servicio</th><th>Costo/mes</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td>Railway (backend + Redis)</td><td>$5 USD</td><td>Plan Hobby</td></tr>
+        <tr><td>Supabase</td><td>$0</td><td>Free tier</td></tr>
+        <tr><td>Claude API (testing)</td><td>~$2-5 USD</td><td>Con spending limit</td></tr>
+        <tr><td>Stripe</td><td>$0</td><td>Modo test, sin transacciones</td></tr>
+        <tr><td>Expo (desarrollo)</td><td>$0</td><td>Free tier 30 builds/mes</td></tr>
+        <tr><td>GitHub, Sentry, Firebase</td><td>$0</td><td>Free tiers</td></tr>
+        <tr class="total-row"><td>Total desarrollo</td><td>~$10-15 USD/mes</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin:20px 0 10px;">MVP live — 100 usuarios premium</h3>
+    <table>
+      <thead><tr><th>Servicio</th><th>Costo/mes</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td>Railway</td><td>$5 USD</td><td>Mismo plan</td></tr>
+        <tr><td>Supabase</td><td>$0</td><td>Free tier cubre</td></tr>
+        <tr><td>IA (AIRouter optimizado)</td><td>~$6 USD</td><td>100 users × 2 int/día × $0.001 × 30</td></tr>
+        <tr><td>Stripe fees</td><td>~$9 USD</td><td>100 × $3 × 2.9% + $0.30</td></tr>
+        <tr><td>Total costos</td><td>~$20 USD</td><td></td></tr>
+        <tr class="total-row"><td>Ingresos</td><td>$300 USD</td><td>100 × $3</td></tr>
+        <tr class="total-row"><td>Margen</td><td>$280 USD/mes</td><td>~93%</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- LEGAL -->
+  <section id="legal">
+    <h2>06 — Lo que necesitas legalmente (mínimo viable)</h2>
+    <div class="svc">
+      <div class="card">
+        <h3>Términos de Servicio</h3>
+        <div class="card-body">Necesarios antes de cobrar. Deben incluir: qué es el producto, que no es consejo médico, cómo funciona la suscripción, política de cancelación.</div>
+        <div class="card-step">→ Usa iubenda.com o Termly para generar uno básico (~$29 USD). Personaliza con el disclaimer de "no somos médicos".</div>
+      </div>
+      <div class="card">
+        <h3>Política de Privacidad</h3>
+        <div class="card-body">Requerida por Apple App Store y Google Play antes de publicar. Debe describir qué datos recoges, cómo los usas y el derecho de eliminación.</div>
+        <div class="card-step">→ Misma herramienta que los ToS. Mención especial: datos de ciclo menstrual como "datos sensibles de salud".</div>
+      </div>
+      <div class="card">
+        <h3>Disclaimer médico</h3>
+        <div class="card-body">CycleCoach no diagnostica ni da consejos médicos. Esto debe estar visible en: onboarding, primera pantalla del chat, y ToS. Sin esto, Anthropic puede rechazarte el uso de la API.</div>
+        <div class="card-step">→ Texto sugerido: "CycleCoach ofrece orientación de comportamiento. No es un sustituto de consejo médico profesional."</div>
+      </div>
+      <div class="card">
+        <h3>App Store Review — puntos de riesgo</h3>
+        <div class="card-body">Apple puede rechazar la app por: datos de salud sin entidad médica, contenido "solo para adultos" sin edad mínima, falta de política de privacidad.</div>
+        <div class="card-step">→ Categoría recomendada: "Health & Fitness" o "Lifestyle". Age rating: 12+ o 17+ (por contenido de relaciones). Declarar en App Privacy que usas datos de salud.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

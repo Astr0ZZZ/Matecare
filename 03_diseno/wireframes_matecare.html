@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MateCare — Wireframes & Paleta Visual</title>
+<style>
+:root {
+  --bg:    #F9F5F0;
+  --bg2:   #F7F4D5;
+  --dark:  #0A3323;
+  --moss:  #839958;
+  --gold:  #B57D2C;
+  --mid:   #105666;
+  --gray:  #95A5A6;
+  --div:   #D5DBDB;
+  --text:  #4D5656;
+  --white: #ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#e8e4df;padding:2rem}
+
+h1{font-size:22px;font-weight:600;color:var(--dark);margin-bottom:4px}
+.sub{font-size:13px;color:var(--gray);margin-bottom:2rem}
+
+/* paleta */
+.palette{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2.5rem}
+.swatch{border-radius:8px;padding:10px 16px;font-size:11px;font-weight:600;min-width:140px}
+
+/* screens */
+.screens{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:6px}
+.lbl{font-size:11px;font-weight:500;color:#666;letter-spacing:.5px;text-transform:uppercase}
+
+.phone{width:230px;background:var(--bg);border-radius:28px;border:2.5px solid #1a1a1a;overflow:hidden}
+.sb{background:var(--dark);color:#7fbfa0;font-size:8px;padding:6px 14px 4px;display:flex;justify-content:space-between}
+.tb{background:var(--dark);padding:8px 14px 10px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:6px}
+.li{width:22px;height:22px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--dark);font-weight:700}
+.lt{font-size:14px;font-weight:600;color:#F9F5F0}
+.ls{font-size:6.5px;color:#c9a96e;letter-spacing:1px;text-transform:uppercase}
+.nd{width:18px;height:18px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dark);font-weight:700}
+.body{padding:10px 12px;background:var(--bg);min-height:400px}
+.st{font-size:9px;font-weight:600;color:var(--dark);letter-spacing:.5px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
+.ib{width:14px;height:14px;border-radius:50%;border:1px solid var(--gray);font-size:8px;color:var(--gray);display:flex;align-items:center;justify-content:center}
+.cw{display:flex;justify-content:center;margin-bottom:10px}
+.mc{background:var(--white);border-radius:10px;border:1px solid var(--div);padding:7px 9px;display:flex;align-items:flex-start;gap:7px;margin-bottom:6px}
+.mi{width:24px;height:24px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+.mn{font-size:9px;font-weight:600;color:var(--dark);margin-bottom:3px}
+.mt{display:inline-block;background:#e2ecd4;color:#3d6e1f;font-size:7px;font-weight:600;padding:2px 5px;border-radius:4px;margin-bottom:4px}
+.pb{height:3px;background:var(--div);border-radius:2px;overflow:hidden}
+.pf{height:100%;background:var(--gold);border-radius:2px}
+.pl{font-size:7px;color:var(--gray);margin-top:2px}
+.hb{background:var(--dark);border-radius:8px;padding:6px 10px;font-size:8px;color:#c9a96e;font-weight:500;text-align:center;margin-top:8px}
+.tabs{display:flex;background:#ede8df;border-top:1px solid var(--div);padding:5px 0 8px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:7px;color:var(--gray)}
+.tab.on{color:var(--dark)}
+.ti{font-size:13px}
+
+/* chat */
+.ch{background:var(--bg2);border-bottom:1px solid var(--div);padding:8px 12px;display:flex;align-items:center;gap:7px}
+.pbadge{background:var(--dark);color:#c9a96e;font-size:7px;font-weight:600;padding:2px 6px;border-radius:10px}
+.cbody{padding:10px 10px 6px;background:var(--bg);height:335px;display:flex;flex-direction:column;gap:6px}
+.bu{max-width:82%;border-radius:10px;padding:6px 9px;font-size:8.5px;line-height:1.45}
+.bu.u{align-self:flex-end;background:var(--dark);color:#F9F5F0;border-bottom-right-radius:3px}
+.bu.a{align-self:flex-start;background:var(--white);color:var(--text);border:1px solid var(--div);border-bottom-left-radius:3px}
+.al{font-size:7px;font-weight:600;color:var(--gold);margin-bottom:3px}
+.ap{background:var(--gold);color:#fff;font-size:7px;font-weight:600;padding:3px 7px;border-radius:8px;display:inline-block;margin-top:4px}
+.cib{background:var(--bg2);border-top:1px solid var(--div);padding:5px 9px;display:flex;align-items:center;gap:6px}
+.cif{flex:1;background:var(--white);border:1px solid var(--div);border-radius:12px;padding:4px 8px;font-size:8px;color:var(--gray)}
+.sb2{width:22px;height:22px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:10px;color:#c9a96e}
+
+/* onboard */
+.obody{padding:16px 12px;display:flex;flex-direction:column;align-items:center}
+.dots{display:flex;gap:4px;margin-bottom:14px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--div)}
+.dot.on{background:var(--gold)}
+.dot.dn{background:var(--moss)}
+.ot{font-size:13px;font-weight:600;color:var(--dark);margin-bottom:4px;text-align:center}
+.os{font-size:9px;color:var(--gray);text-align:center;margin-bottom:14px;line-height:1.4}
+.qo{width:100%;background:var(--white);border:1.5px solid var(--div);border-radius:10px;padding:7px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.qo.sel{border-color:var(--dark);background:#e8f0e8}
+.qi{font-size:14px;width:24px;text-align:center}
+.ql{font-size:9px;font-weight:500;color:var(--dark)}
+.qd{font-size:7.5px;color:var(--gray);margin-top:1px}
+.cta{width:100%;background:var(--dark);color:#F9F5F0;border:none;border-radius:10px;padding:9px;font-size:10px;font-weight:600;margin-top:10px}
+.pn{font-size:7px;color:var(--gray);text-align:center;margin-top:8px;line-height:1.4}
+.pn span{color:var(--moss);font-weight:600}
+
+/* notas de diseño */
+.notes{margin-top:3rem;background:var(--white);border-radius:12px;padding:1.5rem;max-width:720px;border:1px solid var(--div)}
+.notes h2{font-size:14px;font-weight:600;color:var(--dark);margin-bottom:1rem}
+.note-row{display:flex;gap:12px;margin-bottom:10px;align-items:flex-start}
+.note-tag{background:var(--bg2);color:var(--dark);font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;min-width:90px;text-align:center}
+.note-txt{font-size:11px;color:var(--text);line-height:1.5}
+</style>
+</head>
+<body>
+
+<h1>MateCare — Mockup visual</h1>
+<p class="sub">Paleta "Vitalidad Equilibrada" · Stack React Native + Expo · Generado con Claude</p>
+
+<!-- Paleta de colores -->
+<div class="palette">
+  <div class="swatch" style="background:#0A3323;color:#c9a96e">#0A3323 — Verde Botánica</div>
+  <div class="swatch" style="background:#839958;color:#fff">#839958 — Moss Green</div>
+  <div class="swatch" style="background:#F7F4D5;color:#4D5656;border:1px solid #D5DBDB">#F7F4D5 — Beige</div>
+  <div class="swatch" style="background:#95A5A6;color:#fff">#95A5A6 — Gris Piedra</div>
+  <div class="swatch" style="background:#F9F5F0;color:#4D5656;border:1px solid #D5DBDB">#F9F5F0 — Crema Suave</div>
+  <div class="swatch" style="background:#B57D2C;color:#fff">#B57D2C — Mostaza Dorado</div>
+  <div class="swatch" style="background:#105666;color:#fff">#105666 — Midnight Green</div>
+</div>
+
+<!-- Pantallas -->
+<div class="screens">
+
+  <!-- Dashboard -->
+  <div class="col">
+    <div class="lbl">Dashboard</div>
+    <div class="phone">
+      <div class="sb"><span>9:41</span><span>●●●</span></div>
+      <div class="tb">
+        <div class="logo"><div class="li">M</div><div><div class="lt">MateCare</div><div class="ls">Tu guía táctica</div></div></div>
+        <div class="nd">2</div>
+      </div>
+      <div class="body">
+        <div class="st">Cycle Compass <div class="ib">i</div></div>
+        <div class="cw">
+          <svg width="148" height="148" viewBox="0 0 148 148">
+            <!-- Fase Menstrual: gris -->
+            <path d="M74,11 A63,63 0 0,1 125.5,42.5" fill="none" stroke="#95A5A6" stroke-width="22"/>
+            <!-- Folicular: moss (activo) -->
+            <path d="M125.5,42.5 A63,63 0 0,1 125.5,105.5" fill="none" stroke="#839958" stroke-width="22"/>
+            <!-- Ovulación: gold -->
+            <path d="M125.5,105.5 A63,63 0 0,1 74,137" fill="none" stroke="#B57D2C" stroke-width="22"/>
+            <!-- Lútea: midnight -->
+            <path d="M74,137 A63,63 0 0,1 22.5,42.5" fill="none" stroke="#105666" stroke-width="22"/>
+            <!-- Divisores blancos -->
+            <line x1="74" y1="11" x2="74" y2="33" stroke="#F9F5F0" stroke-width="2.5"/>
+            <line x1="125.5" y1="42.5" x2="107" y2="53" stroke="#F9F5F0" stroke-width="2.5"/>
+            <line x1="125.5" y1="105.5" x2="107" y2="95" stroke="#F9F5F0" stroke-width="2.5"/>
+            <line x1="74" y1="137" x2="74" y2="115" stroke="#F9F5F0" stroke-width="2.5"/>
+            <line x1="22.5" y1="42.5" x2="41" y2="53" stroke="#F9F5F0" stroke-width="2.5"/>
+            <!-- Círculo central -->
+            <circle cx="74" cy="74" r="41" fill="#F9F5F0"/>
+            <circle cx="74" cy="74" r="39" fill="none" stroke="#D5DBDB" stroke-width="1"/>
+            <!-- Flecha indicador (apunta a folicular) -->
+            <line x1="74" y1="74" x2="113" y2="58" stroke="#B57D2C" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="113" cy="58" r="5" fill="#B57D2C"/>
+            <circle cx="74" cy="74" r="5" fill="#0A3323"/>
+            <!-- Texto centro -->
+            <text x="74" y="64" text-anchor="middle" font-size="6.5" fill="#95A5A6" font-weight="600" letter-spacing=".5">FASE ACTUAL</text>
+            <text x="74" y="76" text-anchor="middle" font-size="11" fill="#0A3323" font-weight="700">FOLICULAR</text>
+            <text x="74" y="86" text-anchor="middle" font-size="7.5" fill="#4D5656">Día 8 de 28</text>
+            <!-- Labels fases -->
+            <text x="102" y="30" text-anchor="middle" font-size="6.5" fill="#7a8c8c" font-weight="600">Mens.</text>
+            <text x="129" y="76" text-anchor="middle" font-size="6.5" fill="#5a7a3a" font-weight="600">Folic.</text>
+            <text x="106" y="124" text-anchor="middle" font-size="6.5" fill="#8a5e20" font-weight="600">Ovul.</text>
+            <text x="30" y="100" text-anchor="middle" font-size="6.5" fill="#0d4455" font-weight="600">Lútea</text>
+          </svg>
+        </div>
+        <div class="st">Misiones tácticas</div>
+        <div class="mc">
+          <div class="mi">🍳</div>
+          <div style="flex:1">
+            <div class="mn">Cocina una cena especial</div>
+            <div class="mt">Más energía</div>
+            <div class="pb"><div class="pf" style="width:75%"></div></div>
+            <div class="pl">75% completado</div>
+          </div>
+        </div>
+        <div class="mc">
+          <div class="mi">💌</div>
+          <div style="flex:1">
+            <div class="mn">Planear cita sorpresa</div>
+            <div class="mt">Conexión</div>
+            <div class="pb"><div class="pf" style="width:20%"></div></div>
+            <div class="pl">20% completado</div>
+          </div>
+        </div>
+        <div class="hb">Próximo hito: Ovulación en 6 días. Prepárate.</div>
+      </div>
+      <div class="tabs">
+        <div class="tab on"><div class="ti">⌂</div>Inicio</div>
+        <div class="tab"><div class="ti">💬</div>Chat</div>
+        <div class="tab"><div class="ti">📅</div>Cal.</div>
+        <div class="tab"><div class="ti">☰</div>Perfil</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat IA -->
+  <div class="col">
+    <div class="lbl">Chat IA</div>
+    <div class="phone">
+      <div class="sb"><span>9:41</span><span>●●●</span></div>
+      <div class="tb">
+        <div class="logo"><div class="li">M</div><div><div class="lt">MateCare</div><div class="ls">Tu guía táctica</div></div></div>
+        <div class="pbadge">Folicular · D8</div>
+      </div>
+      <div class="ch">
+        <div style="width:26px;height:26px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:11px;color:#c9a96e;font-weight:700">C</div>
+        <div><div style="font-size:9px;font-weight:600;color:var(--dark)">CycleCoach IA</div><div style="font-size:7px;color:var(--moss)">● En línea</div></div>
+      </div>
+      <div class="cbody">
+        <div class="bu u">Está muy callada hoy, no sé qué hacer</div>
+        <div class="bu a">
+          <div class="al">CycleCoach</div>
+          Fase folicular — energía subiendo. El silencio puede ser que procesa algo. No la presiones. Un mensaje simple: "¿Cómo estás?" sin esperar respuesta larga.
+          <div><span class="ap">Acción concreta →</span></div>
+        </div>
+        <div class="bu u">¿Es buen momento para algo romántico?</div>
+        <div class="bu a">
+          <div class="al">CycleCoach</div>
+          Sí. En 6 días entra en ovulación — la mejor ventana del mes. Propón algo hoy, anticípate.
+        </div>
+      </div>
+      <div class="cib">
+        <div class="cif">Pregunta algo...</div>
+        <div class="sb2">↑</div>
+      </div>
+      <div class="tabs">
+        <div class="tab"><div class="ti">⌂</div>Inicio</div>
+        <div class="tab on"><div class="ti">💬</div>Chat</div>
+        <div class="tab"><div class="ti">📅</div>Cal.</div>
+        <div class="tab"><div class="ti">☰</div>Perfil</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div class="col">
+    <div class="lbl">Onboarding</div>
+    <div class="phone">
+      <div class="sb"><span>9:41</span><span>●●●</span></div>
+      <div class="tb">
+        <div class="logo"><div class="li">M</div><div><div class="lt">MateCare</div><div class="ls">Tu guía táctica</div></div></div>
+      </div>
+      <div class="obody">
+        <div class="dots">
+          <div class="dot dn"></div><div class="dot dn"></div>
+          <div class="dot on"></div><div class="dot"></div>
+        </div>
+        <div class="ot">¿Cómo es ella en conflictos?</div>
+        <div class="os">Esto calibra el tono de cada consejo.</div>
+        <div class="qo sel"><div class="qi">🤐</div><div><div class="ql">Evita el conflicto</div><div class="qd">Se cierra, necesita espacio antes de hablar</div></div></div>
+        <div class="qo"><div class="qi">💬</div><div><div class="ql">Habla de frente</div><div class="qd">Prefiere resolver las cosas directo</div></div></div>
+        <div class="qo"><div class="qi">🌊</div><div><div class="ql">Pasiva</div><div class="qd">No lo dice pero sí lo siente</div></div></div>
+        <button class="cta">Continuar →</button>
+        <div class="pn">Los datos de tu pareja son <span>100% privados</span>.<br>Nunca salen de tu dispositivo.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Notas de diseño para el dev -->
+<div class="notes">
+  <h2>Notas de implementación para el dev</h2>
+  <div class="note-row"><div class="note-tag">CycleCompass</div><div class="note-txt">Implementar con <code>react-native-svg</code>. 4 segmentos como arcos (path), flecha indicadora animada. Colores desde <code>mobile/constants/phases.ts → PHASES[x].color</code>. No hardcodear.</div></div>
+  <div class="note-row"><div class="note-tag">Fases / colores</div><div class="note-txt">MENSTRUAL #95A5A6 · FOLICULAR #839958 · OVULACIÓN #B57D2C · LÚTEA #105666</div></div>
+  <div class="note-row"><div class="note-tag">Fondo principal</div><div class="note-txt">#F9F5F0 (Crema Suave). Nunca blanco puro. Header siempre #0A3323.</div></div>
+  <div class="note-row"><div class="note-tag">Acento / CTA</div><div class="note-txt">#B57D2C (Mostaza Dorado) para botones primarios, barras de progreso, flecha compass.</div></div>
+  <div class="note-row"><div class="note-tag">Onboarding</div><div class="note-txt">4 pasos: datos ciclo → personalidad (5 preguntas) → confirm. Perfil anónimo, sin nombre de la pareja.</div></div>
+  <div class="note-row"><div class="note-tag">Crisis mode</div><div class="note-txt">Detectado por keywords en <code>isCrisis()</code> → tier PREMIUM → Claude Sonnet. Banner rojo visible en chat.</div></div>
+</div>
+
+</body>
+</html>

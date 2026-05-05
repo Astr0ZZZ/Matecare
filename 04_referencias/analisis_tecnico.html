@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CycleCoach — Análisis Técnico & Estratégico</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0D0D14;
+    --surface: #16161F;
+    --elevated: #1E1E2A;
+    --border: rgba(255,255,255,0.1);
+    --primary: #C8A951;
+    --primary-dim: rgba(200,169,81,0.15);
+    --green: #27AE8F;
+    --green-dim: rgba(39,174,143,0.15);
+    --red: #C0392B;
+    --red-dim: rgba(192,57,43,0.15);
+    --purple: #8B5CF6;
+    --purple-dim: rgba(139,92,246,0.15);
+    --orange: #F59E0B;
+    --orange-dim: rgba(245,158,11,0.15);
+    --text: #F0F0F5;
+    --text2: #AAABBF;
+    --text3: #6B6B80;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13,13,20,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  nav .logo {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--primary);
+    margin-right: 16px;
+    white-space: nowrap;
+  }
+  nav a {
+    color: var(--text3);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  nav a:hover { color: var(--text); background: var(--elevated); }
+
+  /* LAYOUT */
+  .wrapper { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* SECTIONS */
+  section { margin-bottom: 64px; }
+
+  h1 { font-size: 32px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+  p { color: var(--text2); font-size: 14px; line-height: 1.7; }
+
+  .subtitle { color: var(--text3); font-size: 14px; margin-bottom: 32px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:600px){ .card-grid { grid-template-columns: 1fr; } }
+
+  /* STATUS PILLS */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 100px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .pill.ok    { background: var(--green-dim);  color: var(--green);  }
+  .pill.warn  { background: var(--orange-dim); color: var(--orange); }
+  .pill.error { background: var(--red-dim);    color: var(--red);    }
+  .pill.info  { background: var(--primary-dim);color: var(--primary);}
+  .pill.idea  { background: var(--purple-dim); color: var(--purple); }
+  .pill::before { content: '●'; font-size: 8px; }
+
+  /* ISSUE ITEMS */
+  .issue {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .issue-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .issue-icon.red    { background: var(--red-dim); }
+  .issue-icon.warn   { background: var(--orange-dim); }
+  .issue-icon.green  { background: var(--green-dim); }
+  .issue-icon.purple { background: var(--purple-dim); }
+  .issue-body { flex: 1; min-width: 0; }
+  .issue-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .issue-desc { color: var(--text2); font-size: 13px; line-height: 1.6; }
+  .issue-fix {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--green);
+    background: rgba(39,174,143,0.08);
+    border-left: 2px solid var(--green);
+    padding: 6px 10px;
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* CODE BLOCK */
+  pre {
+    background: #0A0A10;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #A8D8A8;
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  code { font-family: var(--mono); font-size: 12px; }
+  .comment { color: var(--text3); }
+
+  /* DIAGRAM */
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .flow-box {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .flow-box.primary { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+  .flow-box.green   { border-color: var(--green);   color: var(--green);   background: var(--green-dim);  }
+  .flow-box.red     { border-color: var(--red);     color: var(--red);     background: var(--red-dim);    }
+  .flow-box.purple  { border-color: var(--purple);  color: var(--purple);  background: var(--purple-dim); }
+  .flow-arrow { color: var(--text3); font-size: 18px; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    color: var(--text3);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: var(--text2);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--text); font-weight: 500; }
+
+  /* SCORE BARS */
+  .score-item { margin-bottom: 14px; }
+  .score-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+  .score-val { color: var(--primary); font-weight: 600; font-family: var(--mono); }
+  .bar-track { height: 6px; background: var(--elevated); border-radius: 100px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width 0.3s; }
+
+  /* PRIORITY MATRIX */
+  .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .matrix-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .matrix-cell .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .matrix-item {
+    font-size: 12.5px;
+    color: var(--text2);
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .matrix-item:last-child { border-bottom: none; }
+
+  /* INCONSISTENCY */
+  .mismatch {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(192,57,43,0.06);
+    border: 1px solid rgba(192,57,43,0.2);
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .mismatch-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .mismatch-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .mismatch-desc { font-size: 12.5px; color: var(--text2); }
+
+  .good {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(39,174,143,0.06);
+    border: 1px solid rgba(39,174,143,0.2);
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+
+  /* ROADMAP */
+  .roadmap-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .roadmap-item::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 36px;
+    bottom: -20px;
+    width: 2px;
+    background: var(--border);
+  }
+  .roadmap-item:last-child::before { display: none; }
+  .roadmap-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--elevated);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .roadmap-num.active { border-color: var(--primary); color: var(--primary); }
+  .roadmap-num.urgent { border-color: var(--red); color: var(--red); }
+  .roadmap-content { flex: 1; padding-top: 8px; }
+  .roadmap-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .roadmap-desc { font-size: 13px; color: var(--text2); }
+  .roadmap-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* SUMMARY HEADER */
+  .header-score {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .score-card .num {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--mono);
+    margin-bottom: 4px;
+  }
+  .score-card .desc { font-size: 12px; color: var(--text3); }
+
+  /* TOP BANNER */
+  .banner {
+    background: linear-gradient(135deg, rgba(200,169,81,0.1) 0%, rgba(139,92,246,0.08) 100%);
+    border: 1px solid rgba(200,169,81,0.2);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+  .banner h1 { font-size: 26px; }
+  .banner .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">🚴 CycleCoach</span>
+  <a href="#resumen">Resumen</a>
+  <a href="#incongruencias">Incongruencias</a>
+  <a href="#bien">Lo que va bien</a>
+  <a href="#flutter">Flutter</a>
+  <a href="#backend">Backend / IA</a>
+  <a href="#pagos">Pagos</a>
+  <a href="#roadmap">Roadmap</a>
+  <a href="#arq">Arquitectura</a>
+</nav>
+
+<div class="wrapper">
+
+  <!-- BANNER -->
+  <div class="banner">
+    <h1>CycleCoach — Análisis Técnico & Estratégico</h1>
+    <p style="margin-top:6px; color:var(--text2);">Revisión completa del prototipo Flutter + arquitectura backend + sistema de pagos e IA</p>
+    <div class="meta">
+      <span class="pill info">Flutter (Dart)</span>
+      <span class="pill info">Node.js + Supabase</span>
+      <span class="pill info">Claude API</span>
+      <span class="pill info">Stripe</span>
+      <span class="pill warn">Prototipo v0.1</span>
+    </div>
+  </div>
+
+  <!-- PUNTUACIÓN GENERAL -->
+  <section id="resumen">
+    <h2>01 — Puntuación general</h2>
+    <div class="header-score">
+      <div class="score-card">
+        <div class="num" style="color:var(--green)">8.1</div>
+        <div class="desc">Concepto de producto</div>
+      </div>
+      <div class="score-card">
+        <div class="num" style="color:var(--primary)">6.4</div>
+        <div class="desc">Calidad del código Flutter</div>
+      </div>
+      <div class="score-card">
+        <div class="num" style="color:var(--primary)">7.2</div>
+        <div class="desc">Arquitectura backend</div>
+      </div>
+      <div class="score-card">
+        <div class="num" style="color:var(--green)">8.5</div>
+        <div class="desc">Diseño del sistema IA</div>
+      </div>
+      <div class="score-card">
+        <div class="num" style="color:var(--red)">3.0</div>
+        <div class="desc">Consistencia cross-doc</div>
+      </div>
+    </div>
+
+    <div class="score-item">
+      <div class="score-label"><span>Concept / Diferenciación</span><span class="score-val">8.1/10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:81%; background:var(--green)"></div></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label"><span>Flutter — Estructura y UI</span><span class="score-val">6.4/10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:64%; background:var(--primary)"></div></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label"><span>Backend — Diseño de APIs</span><span class="score-val">7.2/10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:72%; background:var(--primary)"></div></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label"><span>AIRouter — Sistema de fallback</span><span class="score-val">8.5/10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--green)"></div></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label"><span>Coherencia entre documentos</span><span class="score-val">3.0/10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:30%; background:var(--red)"></div></div>
+    </div>
+  </section>
+
+  <!-- INCONGRUENCIAS CRÍTICAS -->
+  <section id="incongruencias">
+    <h2>02 — Incongruencias críticas</h2>
+    <p style="margin-bottom:20px;">Estas contradicciones entre los documentos y el código pueden causar problemas reales si no se resuelven antes de seguir construyendo.</p>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">Stack duplicado: Flutter vs React Native</div>
+        <div class="mismatch-desc">
+          El PDF de arquitectura especifica <strong>React Native + Expo</strong> con carpetas <code>mobile/app/(auth)/login.tsx</code>, hooks en TypeScript, etc.<br>
+          El código entregado es <strong>Flutter (Dart)</strong> puro. Son stacks completamente distintos — no se comparte nada.<br><br>
+          <strong>Impacto:</strong> Toda la arquitectura de carpetas del PDF es inválida para el código real. El README incluso dice "Built with Rocket.new" y describe una app genérica Flutter, no CycleCoach.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">Backend inexistente en el repo</div>
+        <div class="mismatch-desc">
+          Los PDFs documentan un backend Node.js completo con 15+ endpoints, Prisma, cron jobs, AIRouter...<br>
+          El repo sólo contiene la app Flutter. No hay carpeta <code>backend/</code>. Todo el "código" del backend está <strong>solo en PDFs como texto</strong>, sin un proyecto real.<br><br>
+          <strong>Impacto:</strong> El prototipo es solo frontend con mocks. No hay integración real posible sin crear el backend desde cero.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">env.json con 7 claves vs .env del PDF con 10</div>
+        <div class="mismatch-desc">
+          El <code>env.json</code> incluye <code>PERPLEXITY_API_KEY</code> y <code>GOOGLE_WEB_CLIENT_ID</code> que <strong>no aparecen en ningún documento</strong>.<br>
+          El PDF de pagos define <code>STRIPE_PRICE_ID_MONTHLY</code>, <code>STRIPE_PRICE_ID_ANNUAL</code>, <code>REDIS_URL</code>, <code>NODE_ENV</code> que <strong>no están en el env.json</strong>.<br><br>
+          <strong>Impacto:</strong> Ambos son incompletos y ninguno es fuente de verdad.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">Modelo Claude incorrecto en el código</div>
+        <div class="mismatch-desc">
+          El PDF de pagos usa correctamente <code>claude-haiku-4-5-20251001</code> y <code>claude-sonnet-4-20250514</code>.<br>
+          El PDF de arquitectura usa <code>claude-sonnet-4-20250514</code> ✓ para aiClient pero en el AIRouter define el provider como string <code>'claude-sonnet'</code> y <code>'claude-haiku'</code> sin el model string correcto en el switch-case.<br><br>
+          <strong>Impacto:</strong> El AIRouter fallará en producción si se copia tal cual — el switch mapea <code>'claude-haiku'</code> pero no usa el model ID correcto <code>claude-haiku-4-5-20251001</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">AppTheme.lightTheme = darkTheme (siempre oscuro)</div>
+        <div class="mismatch-desc">
+          En <code>app_theme.dart</code>: <code>static ThemeData get lightTheme => darkTheme;</code><br>
+          Y en <code>main.dart</code>: <code>themeMode: ThemeMode.light</code> → la app siempre aplica el tema oscuro aunque el dispositivo esté en modo claro. Es un bug intencional-accidental.<br><br>
+          <strong>Impacto:</strong> Correcto para la estética oscura del producto, pero engañoso. Debería ser <code>ThemeMode.dark</code> directamente o eliminar <code>lightTheme</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">README totalmente genérico — no describe CycleCoach</div>
+        <div class="mismatch-desc">
+          El README habla de "flutter_template", "splash_screen" y "Built with Rocket.new". No menciona ni una sola feature de CycleCoach.<br><br>
+          <strong>Impacto:</strong> Si alguien nuevo entra al repo, no sabe qué es el proyecto. Problema de onboarding y presentación a inversores/equipo.
+        </div>
+      </div>
+    </div>
+
+    <div class="mismatch">
+      <div class="mismatch-icon">⚠️</div>
+      <div>
+        <div class="mismatch-title">pubspec.yaml incluye dependencias no usadas</div>
+        <div class="mismatch-desc">
+          <code>universal_html</code>, <code>web</code>, <code>fl_chart</code> — ninguna aparece en ningún widget del código. <code>connectivity_plus</code> tampoco está integrada.<br><br>
+          <strong>Impacto:</strong> Binarios más grandes, posibles conflictos de versiones, confusión sobre qué se usa realmente.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LO QUE VA BIEN -->
+  <section id="bien">
+    <h2>03 — Lo que va bien ✅</h2>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">AppTheme es sólido y consistente</div>
+        <div class="mismatch-desc">El sistema de tokens (colores de fase, espaciado, radios, duraciones) está bien pensado. Los 4 colores de fase son distintos e identificables. El uso de <code>withAlpha()</code> en lugar de <code>withOpacity()</code> es la práctica correcta en Flutter 3.x.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">AIRouter y sistema de fallback — excelente diseño</div>
+        <div class="mismatch-desc">La lógica de 3 niveles (premium/standard/economy) con detección de keywords de crisis es elegante y directamente productizable. El fallback a respuestas estáticas por fase garantiza UX degradada de calidad. El caché Redis por fase es el correcto punto de ahorro.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Webhook Stripe — implementación correcta</div>
+        <div class="mismatch-desc">El manejo de <code>express.raw()</code> para verificar firma, responder siempre 200, y manejar los 4 eventos clave es textbook. El patrón es production-ready tal como está.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Detección de crisis en el chat</div>
+        <div class="mismatch-desc">El array <code>_crisisKeywords</code> en Flutter y la lógica <code>detectTier()</code> en el AIRouter son consistentes conceptualmente (aunque son stacks distintos). La UX de "modo crisis" con banner y cambio de respuesta es el diferencial correcto.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Animaciones de entrada en CyclePhaseScreen</div>
+        <div class="mismatch-desc">El sistema de <code>_sectionFades</code> + <code>_sectionSlides</code> con intervals escalonados es la forma correcta de hacer entrance animations en Flutter. Bien implementado y sin sobrecargar el vsync.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Modelo de datos Map-first con clases auxiliares</div>
+        <div class="mismatch-desc">El patrón <code>_partnerProfileMap</code> → <code>_PartnerProfile.fromMap()</code> es correcto para un prototipo: fácil de reemplazar por respuesta de API sin refactorizar la UI.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Prompt engineering bien estructurado</div>
+        <div class="mismatch-desc">El <code>buildSystemPrompt()</code> combina fase + personalidad + estilo de conflicto + lenguaje de amor en un prompt cohesivo. Las reglas de respuesta (directe, 3-4 puntos, en español) son precisas. Es superior a la mayoría de prompts de apps similares.</div>
+      </div>
+    </div>
+
+    <div class="good">
+      <div style="font-size:18px; flex-shrink:0; margin-top:1px;">✅</div>
+      <div>
+        <div class="mismatch-title">Estimación de costos realista</div>
+        <div class="mismatch-desc">Los cálculos de ~750 tokens/interacción y el ahorro del 82% con el AIRouter son defendibles y honestos. El escenario de 500 usuarios a $1.500/mes con $83 de costo es conservador y creíble para pitches.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANÁLISIS FLUTTER -->
+  <section id="flutter">
+    <h2>04 — Flutter: Issues y mejoras</h2>
+
+    <div class="issue">
+      <div class="issue-icon red">🔴</div>
+      <div class="issue-body">
+        <div class="issue-title">Sin state management real — TODO pendiente en producción</div>
+        <div class="issue-desc">Todos los pantallas tienen comentario <code>// TODO: Replace with Riverpod for production</code>. El estado se maneja con <code>setState</code> local, lo que va a crear problemas de sincronización cuando el chat y el dashboard necesiten compartir el profile.</div>
+        <div class="issue-fix">→ Instalar riverpod + flutter_hooks. Crear ProfileProvider, ChatProvider. Es el paso 1 antes de conectar la API real.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon red">🔴</div>
+      <div class="issue-body">
+        <div class="issue-title">Navegación al Chat rompe el estado del bottom nav</div>
+        <div class="issue-desc">El tab "Chat" hace <code>Navigator.pushNamed()</code> en lugar de cambiar el body. Resultado: cuando el usuario vuelve del chat, el <code>_selectedTab</code> sigue en 0 (Inicio) aunque visualmente esté en Inicio. El tab Chat nunca se activa visualmente.</div>
+        <div class="issue-fix">→ Usar IndexedStack con 4 pantallas o PageView, y manejar el chat como pantalla modal/sheet en lugar de route independiente.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">TypingIndicator hardcodea el color de OVULATION</div>
+        <div class="issue-desc">El indicador de escritura usa <code>AppTheme.phaseOvulationLight</code> y <code>AppTheme.phaseOvulation</code> directamente, ignorando la fase actual del usuario. Si la pareja está en fase menstrual, el indicador será dorado en lugar de rojo.</div>
+        <div class="issue-fix">→ Pasar <code>phase</code> al TypingIndicator como parámetro y usar <code>AppTheme.phaseColor(phase)</code>.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">AiChatScreen tiene el phase hardcoded como constante</div>
+        <div class="issue-desc"><code>static const String _currentPhase = 'OVULATION'</code> y <code>static const int _dayOfCycle = 14</code>. La AppBar muestra "Día 14" siempre. El PhaseContextStrip también recibe estos valores fijos.</div>
+        <div class="issue-fix">→ Pasar los datos del profile como argumento de ruta: <code>Navigator.pushNamed(context, AppRoutes.aiChatScreen, arguments: profile)</code> y leerlos en initState.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">_generateMockResponse usa _dayOfCycle que siempre es 14</div>
+        <div class="issue-desc">La respuesta mock menciona "día $_dayOfCycle" en el texto — siempre dirá "día 14" independientemente del ciclo real.</div>
+        <div class="issue-fix">→ Corregir junto con el punto anterior. Prioridad baja hasta conectar la API real.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">Sidebar del chat duplica datos hardcoded</div>
+        <div class="issue-desc">El tablet sidebar en AiChatScreen tiene strings literales "Ovulación", "Mixta", "Directa", "Tiempo de calidad" que no vienen de ningún modelo de datos — son constantes hardcoded que no se actualizarán cuando el perfil real cambie.</div>
+        <div class="issue-fix">→ Extraer la lógica de descripción de fase/personalidad a un helper (ya existe en el PDF como <code>PHASE_DESCRIPTIONS</code> etc.) y usarlo aquí.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon green">🟢</div>
+      <div class="issue-body">
+        <div class="issue-title">Oportunidad: falta pantalla de Onboarding en el initial route</div>
+        <div class="issue-desc">La ruta inicial lleva directamente a <code>CyclePhaseScreen</code> con un mock profile. En producción debe detectar si el usuario tiene perfil configurado: sin perfil → onboarding, con perfil → dashboard.</div>
+        <div class="issue-fix">→ Crear un SplashScreen que lee SharedPreferences. Si no hay profile → <code>/onboarding</code>. Si hay → <code>/cycle-phase</code>.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon green">🟢</div>
+      <div class="issue-body">
+        <div class="issue-title">Oportunidad: el servicio HTTP (api.ts del PDF) no existe en Flutter</div>
+        <div class="issue-desc">En el prototipo no hay ningún servicio de red. <code>dio</code> está en pubspec pero sin usar. Crear este servicio es el siguiente paso crítico para conectar el backend.</div>
+        <div class="issue-fix">→ Crear <code>lib/services/api_service.dart</code> con Dio, interceptors JWT, y los métodos que mapean a los endpoints del backend.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BACKEND E IA -->
+  <section id="backend">
+    <h2>05 — Backend & IA: Issues y mejoras</h2>
+
+    <div class="issue">
+      <div class="issue-icon red">🔴</div>
+      <div class="issue-body">
+        <div class="issue-title">AIRouter: model strings incorrectos en el switch-case</div>
+        <div class="issue-desc">El switch usa <code>'claude-sonnet'</code> como provider ID, pero dentro del case usa el string correcto <code>'claude-sonnet-4-20250514'</code>. El problema está en que <code>getStaticFallback()</code> busca <code>systemPrompt.includes('MENSTRUAL')</code> pero el prompt real usa la variable que se construye con <code>PHASE_DESCRIPTIONS[ctx.phase]</code>, no el string literal "MENSTRUAL".</div>
+        <div class="issue-fix">→ Pasar la <code>phase</code> como parámetro separado al fallback, no intentar parsear el systemPrompt.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon red">🔴</div>
+      <div class="issue-body">
+        <div class="issue-title">dailyPhaseCheck.job.ts: llamada a IA sin rate limiting ni concurrencia</div>
+        <div class="issue-desc">El cron itera <code>for (const profile of profiles)</code> de forma secuencial — con 500 usuarios en la misma fase, hace 500 llamadas a la IA en serie durante ~5 minutos. El caché Redis está definido pero el cron llama <code>getAIRecommendation</code> en lugar de <code>routeToAI</code>, saltándose el caché.</div>
+        <div class="issue-fix">→ 1) Usar <code>routeToAI</code> en el cron para aprovechar el caché. 2) Agrupar por fase: generar 1 respuesta por fase y distribuir a todos los usuarios de esa fase.</div>
+      </div>
+    </div>
+
+    <pre><span class="comment">// Fix propuesto para el cron:</span>
+const phaseGroups = groupBy(profiles, p => p.currentPhase);
+
+for (const [phase, users] of Object.entries(phaseGroups)) {
+  <span class="comment">// 1 llamada a IA por fase (no por usuario)</span>
+  const recommendation = await routeToAI(
+    buildSystemPrompt({ phase, ...genericCtx }),
+    [{ role: 'user', content: 'Dame el consejo del día.' }],
+    'economy'
+  );
+  <span class="comment">// Luego enviar push a todos los users de esa fase</span>
+  await Promise.all(users.map(u => sendPushNotification(u.userId, {...})));
+}</pre>
+
+    <div class="issue">
+      <div class="issue-icon red">🔴</div>
+      <div class="issue-body">
+        <div class="issue-title">Falta middleware de suscripción (mencionado en el PDF pero no implementado)</div>
+        <div class="issue-desc">El PDF dice "Middleware de suscripción en endpoints premium" en semana 8, pero no hay ningún código de este middleware. Los endpoints <code>/api/ai/chat</code> y <code>/api/ai/recommend</code> son el core del producto de pago — sin el middleware, cualquier usuario FREE puede acceder.</div>
+        <div class="issue-fix">→ Crear <code>requirePremium</code> middleware que verifique <code>user.plan === 'PREMIUM'</code> y responda 403 con JSON descriptivo si es FREE. Aplicar a las rutas de IA.</div>
+      </div>
+    </div>
+
+    <pre><span class="comment">// requirePremium.middleware.ts</span>
+export const requirePremium = async (req, res, next) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (user?.plan !== 'PREMIUM') {
+    return res.status(403).json({ 
+      error: 'SUBSCRIPTION_REQUIRED',
+      message: 'Esta función requiere plan Premium'
+    });
+  }
+  next();
+};</pre>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">buildCacheKey puede colisionar con facilidad</div>
+        <div class="issue-desc">La cache key usa las primeras 100 chars del systemPrompt + 50 chars del último mensaje. Dos usuarios en la misma fase con diferente perfil de personalidad podrían generar la misma key si la personalidad está después del carácter 100 del prompt.</div>
+        <div class="issue-fix">→ Incluir la fase explícita y un hash del perfil de personalidad en la key: <code>ai:${phase}:${personalityHash}:${userInputHash}</code></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon warn">🟡</div>
+      <div class="issue-body">
+        <div class="issue-title">handlePaymentFailed no actualiza el plan a GRACE_PERIOD</div>
+        <div class="issue-desc">Cuando falla el pago, se envía push notification pero no se cambia el estado del usuario. Stripe reintenta 3 veces, pero si los 3 fallan y se dispara <code>customer.subscription.deleted</code>, sí se limpia el plan. El problema es el período entre fallo y cancelación: el usuario sigue con acceso premium durante potencialmente 7-14 días sin pagar.</div>
+        <div class="issue-fix">→ En <code>handlePaymentFailed</code>, establecer un campo <code>paymentFailedAt</code> y en el middleware verificar si han pasado más de 3 días desde el fallo.</div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-icon green">🟢</div>
+      <div class="issue-body">
+        <div class="issue-title">Mejora: añadir streaming a los endpoints de chat</div>
+        <div class="issue-desc">Actualmente el chat espera la respuesta completa (~1.5-2s). Con streaming, el usuario ve texto aparecer en tiempo real desde los primeros 300ms. Anthropic soporta SSE nativamente.</div>
+        <div class="issue-fix">→ Usar <code>client.messages.stream()</code> de Anthropic SDK y enviar chunks via SSE. En Flutter, usar <code>dio</code> con <code>responseType: ResponseType.stream</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGOS -->
+  <section id="pagos">
+    <h2>06 — Stripe & Monetización: gaps</h2>
+
+    <div class="card-grid">
+      <div class="card">
+        <span class="pill warn" style="margin-bottom:12px; display:inline-flex">Falta</span>
+        <h3>Free trial no está definido</h3>
+        <p>El PDF menciona <code>sub.status === 'trialing'</code> como válido para PREMIUM, pero no hay lógica para crear trials. ¿7 días? ¿14? Es una decisión de conversión crítica no documentada.</p>
+      </div>
+      <div class="card">
+        <span class="pill warn" style="margin-bottom:12px; display:inline-flex">Falta</span>
+        <h3>Paywall screen en Flutter</h3>
+        <p>La pantalla de paywall está en la semana 8 del roadmap del PDF pero no existe en el código Flutter. Es la pantalla más importante del producto de pago.</p>
+      </div>
+      <div class="card">
+        <span class="pill warn" style="margin-bottom:12px; display:inline-flex">Falta</span>
+        <h3>Precio no definido en el código</h3>
+        <p>El PDF estima "$3 USD/mes" en los escenarios financieros, pero <code>STRIPE_PRICE_ID_MONTHLY</code> en env es placeholder. No hay pantalla que muestre el precio al usuario.</p>
+      </div>
+      <div class="card">
+        <span class="pill ok" style="margin-bottom:12px; display:inline-flex">Ok</span>
+        <h3>Flujo de webhook es correcto</h3>
+        <p>La verificación de firma Stripe, el manejo de los 4 eventos y el respond-always-200 son correctos. Esto es production-ready tal como está.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px; margin-bottom:12px;">Flujo de pago completo (lo que falta implementar)</h3>
+    <div class="diagram">
+      <div style="margin-bottom:16px; font-size:12px; color:var(--text3); font-weight:600; letter-spacing:0.8px; text-transform:uppercase;">Happy path de suscripción</div>
+      <div class="flow" style="flex-direction:column; align-items:flex-start; gap:4px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-box">Usuario toca "Probar Premium"</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box primary">Flutter: POST /api/subscription/checkout</div>
+        </div>
+        <div style="padding-left:20px; color:var(--text3); font-size:12px; margin:2px 0;">↓</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-box">Backend crea Customer + PaymentIntent</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green">App abre Stripe Payment Sheet</div>
+        </div>
+        <div style="padding-left:20px; color:var(--text3); font-size:12px; margin:2px 0;">↓</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-box">Stripe confirma → webhook POST /api/subscription/webhook</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green">user.plan = PREMIUM en BD</div>
+        </div>
+        <div style="padding-left:20px; color:var(--text3); font-size:12px; margin:2px 0;">↓</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-box primary">App recibe 200 → desbloquea UI</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green">✅ Usuario tiene acceso al chat IA</div>
+        </div>
+      </div>
+      <div style="margin-top:16px; padding:12px; background:var(--red-dim); border-radius:8px; font-size:12px; color:var(--text2);">
+        ⚠️ <strong style="color:var(--red)">Gap actual:</strong> el backend no implementa <code>POST /api/subscription/checkout</code> ni la lógica de crear Customer en Stripe. El webhook handler sí está pero no hay nadie que llame al checkout primero.
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP SUGERIDO -->
+  <section id="roadmap">
+    <h2>07 — Roadmap priorizado (next steps)</h2>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num urgent">1</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Resolver la incongruencia de stack</div>
+        <div class="roadmap-desc">Decidir: ¿el futuro es Flutter o React Native? El código real es Flutter. Si se va a mantener Flutter, reescribir los PDFs de arquitectura para que reflejen la estructura Dart/Flutter correcta. Eliminar las referencias a <code>mobile/app/(auth)/login.tsx</code>.</div>
+        <div class="roadmap-tags"><span class="pill error">Bloqueante</span><span class="pill info">1-2 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num urgent">2</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Crear el backend Node.js como proyecto real</div>
+        <div class="roadmap-desc">El código del PDF es suficientemente completo para inicializarlo. Crear el repo <code>cyclecoach-backend/</code>, instalar dependencias, configurar Prisma + Supabase, y hacer el primer <code>prisma migrate dev</code>. Los endpoints de auth y profile primero.</div>
+        <div class="roadmap-tags"><span class="pill error">Crítico</span><span class="pill info">3-5 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num active">3</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Añadir Riverpod + ApiService a Flutter</div>
+        <div class="roadmap-desc">Instalar <code>flutter_riverpod</code> y <code>go_router</code>. Crear providers para profile y chat. Crear <code>ApiService</code> con Dio que conecte a los endpoints del backend. Reemplazar los mocks.</div>
+        <div class="roadmap-tags"><span class="pill warn">Alta prioridad</span><span class="pill info">2-3 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num active">4</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Implementar flujo de onboarding real</div>
+        <div class="roadmap-desc">La UI del onboarding ya existe en Flutter (3 pasos: cycle-setup, personality-quiz, confirm). Solo falta conectarla al endpoint <code>POST /api/profile</code> y añadir la lógica de routing inicial (perfil creado → dashboard, no → onboarding).</div>
+        <div class="roadmap-tags"><span class="pill warn">Alta prioridad</span><span class="pill info">1-2 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num">5</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Chat con IA real (streaming)</div>
+        <div class="roadmap-desc">Conectar el chat Flutter al endpoint <code>POST /api/ai/chat</code> con el AIRouter. Implementar SSE streaming para respuesta en tiempo real. Pasar el profile completo como contexto.</div>
+        <div class="roadmap-tags"><span class="pill info">Core feature</span><span class="pill info">2-3 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num">6</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Paywall + Stripe integración completa</div>
+        <div class="roadmap-desc">Crear pantalla de paywall en Flutter con Stripe Payment Sheet. Implementar el endpoint <code>POST /api/subscription/checkout</code>. Añadir el middleware <code>requirePremium</code> a las rutas de IA.</div>
+        <div class="roadmap-tags"><span class="pill info">Monetización</span><span class="pill info">3-4 días</span></div>
+      </div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-num">7</div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Push notifications + cron diario</div>
+        <div class="roadmap-desc">Setup Expo Notifications en el backend (aunque es Flutter, puedes usar FCM directamente). Corregir el cron para que agrupe por fase antes de llamar a la IA.</div>
+        <div class="roadmap-tags"><span class="pill idea">Engagement</span><span class="pill info">2-3 días</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIAGRAMA DE ARQUITECTURA OBJETIVO -->
+  <section id="arq">
+    <h2>08 — Arquitectura objetivo (estado futuro correcto)</h2>
+
+    <div class="diagram">
+      <div style="margin-bottom:16px; font-size:12px; color:var(--text3); font-weight:600; letter-spacing:0.8px; text-transform:uppercase;">Arquitectura completa CycleCoach</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Capa</th>
+            <th>Tecnología real (Flutter)</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>App móvil</td>
+            <td>Flutter + Dart · Riverpod · go_router · Dio</td>
+            <td><span class="pill warn">Parcial — falta state mgmt</span></td>
+          </tr>
+          <tr>
+            <td>Backend API</td>
+            <td>Node.js + Express · TypeScript · Railway</td>
+            <td><span class="pill error">No existe como proyecto</span></td>
+          </tr>
+          <tr>
+            <td>Base de datos</td>
+            <td>PostgreSQL (Supabase) · Prisma ORM</td>
+            <td><span class="pill error">No inicializado</span></td>
+          </tr>
+          <tr>
+            <td>Auth</td>
+            <td>Supabase Auth · JWT</td>
+            <td><span class="pill error">No implementado</span></td>
+          </tr>
+          <tr>
+            <td>IA primaria</td>
+            <td>Claude Haiku 4.5 (70% tráfico)</td>
+            <td><span class="pill warn">Diseñado, no conectado</span></td>
+          </tr>
+          <tr>
+            <td>IA compleja</td>
+            <td>Claude Sonnet 4 (keywords crisis)</td>
+            <td><span class="pill warn">Diseñado, no conectado</span></td>
+          </tr>
+          <tr>
+            <td>IA automática</td>
+            <td>Gemini 1.5 Flash (notifs)</td>
+            <td><span class="pill warn">Diseñado, no conectado</span></td>
+          </tr>
+          <tr>
+            <td>Caché</td>
+            <td>Redis (Railway) · TTL 6h por fase</td>
+            <td><span class="pill error">No existe</span></td>
+          </tr>
+          <tr>
+            <td>Pagos</td>
+            <td>Stripe · Payment Sheet · Webhooks</td>
+            <td><span class="pill warn">Webhook handler ✓, checkout falta</span></td>
+          </tr>
+          <tr>
+            <td>Push</td>
+            <td>FCM/APNs directo (no Expo — app es Flutter)</td>
+            <td><span class="pill error">No implementado</span></td>
+          </tr>
+          <tr>
+            <td>Monitoreo</td>
+            <td>Sentry (backend) · Crashlytics (Flutter)</td>
+            <td><span class="pill error">No configurado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:24px 0 12px">Flujo de datos en producción</h3>
+    <div class="diagram">
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:13px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box purple">Flutter App</div>
+          <div class="flow-arrow">──JWT──→</div>
+          <div class="flow-box">Node.js API (Railway)</div>
+          <div class="flow-arrow">──→</div>
+          <div class="flow-box green">AIRouter</div>
+        </div>
+        <div style="display:flex; gap:8px; padding-left:40px; flex-wrap:wrap;">
+          <div class="flow-arrow">↓</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div class="flow-box green">Redis Cache HIT → respuesta inmediata</div>
+            <div class="flow-box primary">MISS → Claude Haiku (standard) / Sonnet (crisis) / Gemini (auto)</div>
+            <div class="flow-box red">All fail → Static fallback por fase</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
+          <div class="flow-box">Supabase PostgreSQL</div>
+          <div class="flow-arrow">←──Prisma──</div>
+          <div class="flow-box">Node.js API</div>
+          <div class="flow-arrow">←──webhook──</div>
+          <div class="flow-box primary">Stripe</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:24px 0 12px">Nota importante: Push Notifications en Flutter</h3>
+    <div class="card" style="border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.05);">
+      <p>El PDF usa <strong>Expo Notifications</strong> porque asume React Native + Expo. Con Flutter, la solución correcta es <strong>firebase_messaging</strong> (Flutter plugin oficial de Firebase/FCM) + APNs para iOS. El cron del backend debería usar el Admin SDK de Firebase para enviar pushes directamente a los tokens FCM, no Expo push tokens.</p>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <section>
+    <h2>09 — Resumen ejecutivo</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div style="font-size:22px; margin-bottom:10px;">🎯</div>
+        <h3>El concepto es sólido</h3>
+        <p>El diferencial (perfil de personalidad + ciclo = consejo contextual) es genuinamente diferente a las apps de ciclo existentes. El prompt engineering está por encima de la media.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px; margin-bottom:10px;">⚠️</div>
+        <h3>La mayor deuda: documentos vs código</h3>
+        <p>Los PDFs documentan un stack React Native que no existe. El código real es Flutter. Esta brecha es la raíz de la mayoría de incongruencias y debe resolverse primero.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px; margin-bottom:10px;">🏗️</div>
+        <h3>El backend es el gap más grande</h3>
+        <p>Existe bien diseñado en papel, pero no como proyecto. El AIRouter, el webhook de Stripe y el sistema de caché son excelentes — pero están atrapados en PDFs.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px; margin-bottom:10px;">🚀</div>
+        <h3>Próximo milestone realista</h3>
+        <p>MVP funcional en 3-4 semanas: backend inicializado + onboarding conectado + chat con IA real (sin streaming) + acceso libre (sin paywall). Suficiente para validar la propuesta de valor.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
