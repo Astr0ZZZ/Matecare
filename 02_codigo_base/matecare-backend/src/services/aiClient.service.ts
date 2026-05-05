@@ -48,3 +48,20 @@ export async function askAI(messages: any[]) {
     return `Lo más importante hoy es la presencia tranquila. Dado que está en esta fase, evita proponer planes que requieran mucha energía social. Un pequeño gesto silencioso, como prepararle algo de comer o simplemente estar a su lado sin pedir nada, tendrá un impacto enorme. Es momento de observar más y hablar menos.`;
   }
 }
+export async function generarConsejoTactico(mensaje: string, faseMujer: string) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const systemPrompt = `
+      Eres MateCare, una IA táctica que asesora a hombres sobre cómo apoyar a sus parejas.
+      Contexto crítico: La pareja del usuario está en la fase ${faseMujer} de su ciclo menstrual.
+      Instrucciones: Responde de forma directa, empática pero estructurada como un reporte táctico.
+    `;
+
+    const promptFinal = `${systemPrompt}\n\nConsulta del usuario: ${mensaje}`;
+    const result = await model.generateContent(promptFinal);
+    return result.response.text();
+  } catch (error) {
+    console.error("Error en Gemini:", error);
+    throw new Error("Fallo en la comunicación con la matriz táctica.");
+  }
+}

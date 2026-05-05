@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { MotiView } from 'moti';
+import { View as MotiView } from 'moti';
 import { SPACING, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -11,21 +11,28 @@ interface MissionCardProps {
   description: string;
   progress: number;
   category: string;
+  index?: number;
   onPress: () => void;
 }
 
-export default function MissionCard({ title, description, progress, category, onPress }: MissionCardProps) {
+export default function MissionCard({ title, description, progress, category, index = 0, onPress }: MissionCardProps) {
   const { theme } = useTheme();
   const isCompleted = progress >= 100;
 
   return (
     <MotiView
-      from={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 600, delay: index * 100 }}
       style={[
         styles.container, 
-        { backgroundColor: theme.colors.card, borderColor: isCompleted ? theme.colors.primary : theme.colors.border },
-        isCompleted && { opacity: 0.8 }
+        { 
+          backgroundColor: theme.colors.card, 
+          borderColor: isCompleted ? theme.colors.primary : theme.colors.border,
+          borderLeftColor: theme.colors.accent, // Acento Oro/Platino sugerido
+          borderLeftWidth: 6
+        },
+        isCompleted && { opacity: 0.7 }
       ]}
     >
       <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.content}>
@@ -57,7 +64,7 @@ export default function MissionCard({ title, description, progress, category, on
           </View>
         </View>
         
-        <View style={[styles.footer, { borderTopColor: theme.colors.border + '50' }]}>
+        <View style={[styles.footer, { borderTopColor: theme.colors.border + '30' }]}>
           <View style={[styles.tag, { backgroundColor: theme.colors.primary + '10' }]}>
             <Text style={[styles.tagText, { color: theme.colors.primary }]}>{category.toUpperCase()}</Text>
           </View>
@@ -76,11 +83,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     overflow: 'hidden',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
   content: {
     padding: SPACING.md,
