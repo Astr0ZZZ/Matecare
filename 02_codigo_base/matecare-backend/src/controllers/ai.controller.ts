@@ -8,6 +8,9 @@ import { getInsight, detectInsightContext } from '../services/insightCache.servi
 import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
 import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
 
+// Cache en memoria para cuando Redis está offline
+const memoryCache: Record<string, string> = {};
+
 /**
  * Interfaces para mejorar el tipado y evitar el uso excesivo de 'any'
  */
@@ -128,13 +131,20 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     const dailyCacheKey = `daily:${userId}:${today}`;
 
     // Intento leer de Redis
+    // 1. Intentar Redis
     try {
       const cached = await redis.get(dailyCacheKey);
       if (cached) {
+        console.log(`[Cache] HIT Redis: ${dailyCacheKey}`);
         return res.json({ recommendation: cached, cycle, fromCache: true });
       }
     } catch (redisError) {
-      console.warn('[Redis] Error reading cache:', redisError);
+      // Si falla Redis, intentar memoria
+      const memoryCached = memoryCache[dailyCacheKey];
+      if (memoryCached) {
+        console.log(`[Cache] HIT Memory: ${dailyCacheKey}`);
+        return res.json({ recommendation: memoryCached, cycle, fromCache: true });
+      }
     }
 
     const personalityProfile = await getPersonalityProfile(userId);
@@ -166,11 +176,12 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
       aiResponse = (await askAI(messages)) || "";
     }
 
-    // Guardar en Redis (Expira en 23 horas para asegurar refresco diario)
+    // Guardar en Redis y Memoria
     try {
+      memoryCache[dailyCacheKey] = aiResponse;
       await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
     } catch (redisError) {
-      console.warn('[Redis] Error saving cache:', redisError);
+      // Ignorar, ya guardamos en memoria
     }
 
     return res.json({ recommendation: aiResponse, cycle, fromCache: false });

@@ -9,6 +9,9 @@ import {
   PREFERENCE_DESCRIPTIONS
 } from './personalityMapper.service';
 
+// Cache en memoria para cuando Redis está offline
+const memoryCache: Record<string, string> = {};
+
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 días en Redis
 const DB_EXPIRY_DAYS = 30;
 
@@ -96,7 +99,11 @@ export async function getInsight(req: InsightRequest): Promise<string> {
       return redisResult;
     }
   } catch (e) {
-    console.warn('[Cache] Redis unavailable, falling back to DB');
+    const memoryResult = memoryCache[`insight:${cacheKey}`];
+    if (memoryResult) {
+      console.log(`[Cache] HIT Memory: ${cacheKey}`);
+      return memoryResult;
+    }
   }
 
   // 2. Buscar en DB (persistente)
@@ -140,10 +147,11 @@ export async function getInsight(req: InsightRequest): Promise<string> {
     create: { cacheKey, insight, expiresAt }
   });
 
-  // Guardar en Redis
+  // Guardar en Redis y Memoria
   try {
+    memoryCache[`insight:${cacheKey}`] = insight;
     await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
-  } catch (e) { /* Redis opcional */ }
+  } catch (e) { /* Opcional */ }
 
   return insight;
 }

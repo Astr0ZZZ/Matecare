@@ -1,6 +1,12 @@
 import { createClient } from 'redis'
 
 export const redis = createClient({ url: process.env.REDIS_URL })
-redis.on('error', (err) => console.log('Redis offline (expected if not configured)'))
+let isRedisOfflineLogged = false;
+redis.on('error', (err) => {
+  if (!isRedisOfflineLogged) {
+    console.warn('[Redis] Connection failed. Using fallback in-memory/DB caching.');
+    isRedisOfflineLogged = true;
+  }
+});
 redis.connect().catch(() => {})
 
