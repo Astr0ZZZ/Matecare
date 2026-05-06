@@ -58,7 +58,7 @@ export async function askAI(messages: any[]) {
     }
 
     const response = await client.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash-exp",
       contents: contents,
       config: config
     });
@@ -90,11 +90,11 @@ export async function generarConsejoTactico(mensaje: string, faseMujer: string, 
     }
     
     const response = await client.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash-exp",
       contents: contents,
       config: {
         systemInstruction: `Eres MateCare, una IA táctica.\nContexto: Fase ${faseMujer}.\n${crisisAddon}\nResponde de forma directa y estructurada.`,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+        thinkingConfig: { includeThoughts: true }
       }
     });
     
@@ -135,11 +135,11 @@ export async function generarMisionesTactica(contexto: any) {
   const phase = (contexto.phase || 'MENSTRUAL').toUpperCase();
   try {
     const response = await client.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash-exp",
       contents: [{ role: 'user', parts: [{ text: `Actúa como MateCare. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}. Formato JSON: [{title, description, category}].` }] }],
       config: {
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+        thinkingConfig: { includeThoughts: true }
       }
     });
 

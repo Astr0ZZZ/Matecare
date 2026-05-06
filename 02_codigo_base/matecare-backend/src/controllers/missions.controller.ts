@@ -13,12 +13,21 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    const today = new Date(new Date().setHours(0,0,0,0));
+    // Definimos "hoy" de forma más robusta (comienzo del día en UTC para consistencia con la DB)
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    
+    console.log(`[Missions] Fetching for user ${userId}, phase ${cycle.phase}, since ${today.toISOString()}`);
+
     const currentMissions = await prisma.mission.findMany({
-      where: { userId, createdAt: { gte: today } }
+      where: { 
+        userId, 
+        createdAt: { gte: today } 
+      }
     });
 
-    if (currentMissions.length >= 3) {
+    if (currentMissions.length > 0) {
+      console.log(`[Missions] Found ${currentMissions.length} missions for today.`);
       return res.json(currentMissions);
     }
 
@@ -66,7 +75,9 @@ export const resetMissions = async (req: Request, res: Response) => {
     }
 
     // Borrar misiones de hoy y generar nuevas
-    const today = new Date(new Date().setHours(0,0,0,0));
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    
     await prisma.mission.deleteMany({
       where: { userId, createdAt: { gte: today } }
     });

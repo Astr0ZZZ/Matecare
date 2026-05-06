@@ -66,12 +66,13 @@ export default function CalendarScreen() {
     const today = new Date().toISOString().split('T')[0];
     
     missions.forEach(m => {
+      if (!m.createdAt) return;
       const date = new Date(m.createdAt).toISOString().split('T')[0];
       marks[date] = { 
         marked: true, 
-        dotColor: theme.colors.accent,
+        dotColor: theme?.colors?.accent || '#CFAA3C',
         selected: date === selectedDay,
-        selectedColor: date === selectedDay ? theme.colors.accent : undefined
+        selectedColor: date === selectedDay ? (theme?.colors?.accent || '#CFAA3C') : undefined
       };
     });
 
@@ -151,12 +152,19 @@ export default function CalendarScreen() {
             </View>
 
             {/* Detalles de Misiones Pasadas */}
-            {selectedDay && missionHistory.filter(m => new Date(m.createdAt).toISOString().split('T')[0] === selectedDay).map(m => (
+            {selectedDay && missionHistory.filter(m => {
+              if (!m.createdAt) return false;
+              const mDate = new Date(m.createdAt).toISOString().split('T')[0];
+              return mDate === selectedDay;
+            }).map(m => (
               <MotiView 
                 key={m.id}
                 from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                style={[styles.historyItem, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}
+                style={[styles.historyItem, { 
+                  backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', 
+                  borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' 
+                }]}
               >
                 <Text style={[styles.historyTitle, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.boldFont }]}>{m.title}</Text>
                 {m.imageUrl && (
