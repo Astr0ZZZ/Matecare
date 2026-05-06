@@ -13,9 +13,9 @@ export type AITier = 'premium' | 'standard' | 'economy'
  * Premium: GPT-4o ($2.50 / 1M)
  */
 const MODEL_MAP: Record<AITier, string> = {
-  economy:  'gemini-2.0-flash-lite', 
-  standard: 'gpt-4o-mini',
-  premium:  'gpt-4o',
+  economy: 'gemini-3.1-flash-lite-preview-0303',
+  standard: 'gpt-5.5-instant',
+  premium: 'gpt-5.5-pro',
 }
 
 export function detectTier(userInput?: string): AITier {
@@ -51,7 +51,7 @@ export async function routeToAI(
       ],
       temperature: 0.7
     })
-    
+
     return response.choices[0].message.content ?? ''
   } catch (err: any) {
     console.warn(`[AIRouter] Fallo en ${model}: ${err.message}. Reintentando con Gemini.`)

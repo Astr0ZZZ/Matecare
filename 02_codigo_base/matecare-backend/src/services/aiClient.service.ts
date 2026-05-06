@@ -10,10 +10,9 @@ const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 const MODEL_FALLBACK_CHAIN = [
-  "gemini-2.0-flash-lite",
-  "gemini-2.5-flash-lite-preview-06-17",
-  "gemma-3-27b-it",
-  "gpt-5.5-instant", // Fallback de alta potencia (OpenAI 2026)
+  "gemini-3.1-flash-lite-preview-0303",
+  "gpt-5.5-instant",
+  "gemini-1.5-flash", // Legacy fallback
 ];
 
 async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {
@@ -42,21 +41,21 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
           max_tokens: 800,
           temperature: 0.7
         });
-        
+
         return response.choices[0]?.message?.content || "";
       }
 
       // Caso Google (Gemini/Gemma)
-      const cleanConfig = model.startsWith('gemma') 
+      const cleanConfig = model.startsWith('gemma')
         ? { ...params.config, thinkingConfig: undefined }
         : params.config;
 
-      const response = await client.models.generateContent({ 
-        model, 
-        contents: params.contents, 
-        config: cleanConfig 
+      const response = await client.models.generateContent({
+        model,
+        contents: params.contents,
+        config: cleanConfig
       });
-      
+
       if (response.text) return response.text;
     } catch (err: any) {
       const isQuotaError = err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota');
@@ -77,7 +76,7 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
  */
 function normalizeHistory(rawMessages: any[]) {
   const contents: any[] = [];
-  
+
   for (const m of rawMessages) {
     const role = (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user';
     const text = m.content || m.text || "";
@@ -106,7 +105,7 @@ export async function askAI(messages: any[]) {
   try {
     const systemPrompt = messages.find(m => m.role === 'system')?.content || "";
     const rawContents = messages.filter(m => m.role !== 'system');
-    
+
     const contents = normalizeHistory(rawContents);
 
     if (contents.length === 0) {
@@ -146,13 +145,13 @@ export async function generarConsejoTactico(mensaje: string, faseMujer: string, 
     } else {
       contents.push({ role: 'user', parts: [{ text: mensaje }] });
     }
-    
-    return await generateWithFallback({ 
-      contents, 
+
+    return await generateWithFallback({
+      contents,
       config: {
         systemInstruction: `Eres MateCare, una IA táctica.\nContexto: Fase ${faseMujer}.\n${crisisAddon}\nResponde de forma directa y estructurada.`,
-        thinkingConfig: { 
-          thinkingLevel: ThinkingLevel.LOW 
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
         }
       }
     });
@@ -195,8 +194,8 @@ export async function generarMisionesTactica(contexto: any) {
       contents: [{ role: 'user', parts: [{ text: `Actúa como MateCare. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}. Formato JSON: [{title, description, category}].` }] }],
       config: {
         responseMimeType: "application/json",
-        thinkingConfig: { 
-          thinkingLevel: ThinkingLevel.LOW 
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
         }
       }
     });
