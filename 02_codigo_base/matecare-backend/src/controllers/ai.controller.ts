@@ -5,6 +5,8 @@ import { calculateCycleState } from '../services/cycleEngine.service';
 import { buildMessages } from '../services/promptEngine.service';
 import { askAI } from '../services/aiClient.service';
 import { getInsight, detectInsightContext } from '../services/insightCache.service';
+import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
+import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
 
 /**
  * Interfaces para mejorar el tipado y evitar el uso excesivo de 'any'
@@ -22,7 +24,7 @@ async function getPersonalityProfile(userId: string) {
  * Handler principal para el chat interactivo
  */
 export const handleChat = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   const { mensaje, history } = req.body;
 
   if (!userId) {
@@ -32,6 +34,10 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
   try {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Partner profile not found' });
+
+    if (!profile.lastPeriodDate) {
+      return res.status(422).json({ error: 'Partner profile is missing cycle data (lastPeriodDate)' });
+    }
 
     const personalityProfile = await getPersonalityProfile(userId);
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
@@ -43,13 +49,13 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       // Si el contexto es específico y diferente a plan_romantico, usamos el cache de insights
       if (context !== 'plan_romantico') {
         const cachedInsight = await getInsight({
-          mbtiType: personalityProfile.mbtiType as any,
-          phase: cycle.phase as any,
+          mbtiType: personalityProfile.mbtiType as MBTIType,
+          phase: cycle.phase as CyclePhase,
           context,
-          affectionStyle: profile.affectionStyle,
-          conflictStyle: profile.conflictStyle,
-          attachmentStyle: (personalityProfile.attachmentStyle as any) || 'SECURE',
-          preferences: personalityProfile.preferences as any,
+          affectionStyle: profile.affectionStyle as AffectionStyle,
+          conflictStyle: profile.conflictStyle as ConflictStyle,
+          attachmentStyle: (personalityProfile.attachmentStyle as AttachmentStyle) ?? 'SECURE',
+          preferences: personalityProfile.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
         });
 
         if (cachedInsight) {
@@ -59,7 +65,18 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
     }
 
     // 2. Conversación general (Llamada a AI)
-    const trimmedHistory = Array.isArray(history) ? history.slice(-8) : [];
+    // Validar que cada elemento del historial tenga la forma correcta
+    const trimmedHistory = Array.isArray(history)
+      ? history
+          .filter(
+            (h): h is { role: string; content: string } =>
+              h !== null &&
+              typeof h === 'object' &&
+              typeof h.role === 'string' &&
+              typeof h.content === 'string'
+          )
+          .slice(-8)
+      : [];
 
     const messages = buildMessages({
       phase: cycle.phase,
@@ -72,9 +89,9 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       affectionStyle: profile.affectionStyle,
       userInput: mensaje,
       interactionHistory: trimmedHistory,
-      mbtiType: personalityProfile?.mbtiType as any,
-      attachmentStyle: (personalityProfile?.attachmentStyle as any) || undefined,
-      preferences: (personalityProfile?.preferences as any) || undefined,
+      mbtiType: personalityProfile?.mbtiType as MBTIType | undefined,
+      attachmentStyle: personalityProfile?.attachmentStyle as AttachmentStyle | undefined,
+      preferences: personalityProfile?.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
     });
 
     const aiResponse = await askAI(messages);
@@ -90,7 +107,7 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
  * Obtener recomendación diaria basada en el ciclo
  */
 export const getDailyRecommendation = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id || req.params.userId;
+  const userId = req.user?.id;
   
   if (!userId) {
     return res.status(401).json({ error: 'User ID is required' });
@@ -100,11 +117,15 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
+    if (!profile.lastPeriodDate) {
+      return res.status(422).json({ error: 'Partner profile is missing cycle data (lastPeriodDate)' });
+    }
+
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
     // Cache Key basada en fecha, usuario y fase actual
     const today = new Date().toISOString().split('T')[0]; 
-    const dailyCacheKey = `daily:${userId}:${today}:${cycle.phase}`;
+    const dailyCacheKey = `daily:${userId}:${today}`;
 
     // Intento leer de Redis
     try {
@@ -122,13 +143,13 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     // Si tiene perfil MBTI, usamos el motor de insights (más rápido/barato)
     if (personalityProfile?.mbtiType) {
       aiResponse = await getInsight({
-        mbtiType: personalityProfile.mbtiType as any,
-        phase: cycle.phase as any,
+        mbtiType: personalityProfile.mbtiType as MBTIType,
+        phase: cycle.phase as CyclePhase,
         context: 'plan_romantico',
-        affectionStyle: profile.affectionStyle,
-        conflictStyle: profile.conflictStyle,
-        attachmentStyle: (personalityProfile.attachmentStyle as any) || 'SECURE',
-        preferences: personalityProfile.preferences as any,
+        affectionStyle: profile.affectionStyle as AffectionStyle,
+        conflictStyle: profile.conflictStyle as ConflictStyle,
+        attachmentStyle: (personalityProfile.attachmentStyle as AttachmentStyle) ?? 'SECURE',
+        preferences: personalityProfile.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
       });
     } else {
       // Fallback a construcción de prompt genérico
