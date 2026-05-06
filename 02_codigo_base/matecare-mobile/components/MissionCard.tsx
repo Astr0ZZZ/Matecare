@@ -13,21 +13,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import * as ImagePicker from 'expo-image-picker';
-import { apiFetch } from '../services/api';
+import { apiFetch } from '../lib/api';
+import { uploadMissionPhoto } from '../services/storage.service';
 import { supabase } from '../lib/supabase';
 
 interface MissionCardProps {
   id: string;
+  userId: string;
   title: string;
   description: string;
   progress: number;
   category: string;
-  index?: number;
+  index: number;
   onPress: () => void;
 }
 
 export default function MissionCard({ 
   id,
+  userId,
   title, 
   description, 
   progress, 
@@ -71,13 +74,15 @@ export default function MissionCard({
       if (!result.canceled) {
         setUploading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        const res = await apiFetch('/api/missions/upload-evidence', {
+        const publicUrl = await uploadMissionPhoto(userId, id, result.assets[0].uri);
+
+        const res = await apiFetch('/api/missions/evidence', {
           method: 'POST',
-          body: JSON.stringify({
-            missionId: id,
-            imageUrl: result.assets[0].uri,
-            userId: user?.id
-          })
+          body: JSON.stringify({ 
+            missionId: id, 
+            imageUrl: publicUrl,
+            userId 
+          }),
         });
 
         if (res.ok) {

@@ -80,14 +80,39 @@ export const saveProfile = async (req: Request, res: Response) => {
 export const getProfile = async (req: Request, res: Response) => {
   const userId = req.params.userId || (req as any).user?.id;
   try {
-    const [profile, personalityProfile] = await Promise.all([
+    const [profile, personalityProfile, user] = await Promise.all([
       prisma.partnerProfile.findUnique({ where: { userId } }),
       prisma.personalityProfile.findUnique({ where: { userId } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { points: true } })
     ]);
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
-    res.status(200).json({ ...profile, mbti: personalityProfile });
+    res.status(200).json({ ...profile, mbti: personalityProfile, points: user?.points || 0 });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+};
+export const getRanking = async (req: Request, res: Response) => {
+  try {
+    const topUsers = await prisma.user.findMany({
+      take: 10,
+      orderBy: { points: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        points: true,
+      }
+    });
+    
+    // Ofuscar emails para privacidad
+    const maskedRanking = topUsers.map((u, i) => ({
+      rank: i + 1,
+      name: u.email.split('@')[0],
+      points: u.points
+    }));
+
+    res.json(maskedRanking);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch ranking' });
   }
 };
 

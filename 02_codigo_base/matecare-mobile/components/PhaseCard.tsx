@@ -14,7 +14,18 @@ interface PhaseCardProps {
 export default function PhaseCard({ phase, dayOfCycle }: PhaseCardProps) {
   const { theme } = useTheme();
   const safePhase = phase || 'MENSTRUAL';
-  const phaseKey = safePhase.toUpperCase() as keyof typeof theme.colors.phases;
+  const phaseMapping: Record<string, keyof typeof theme.colors.phases> = {
+    'MENSTRUAL': 'MENSTRUAL',
+    'FOLICULAR': 'FOLLICULAR',
+    'FOLLICULAR': 'FOLLICULAR',
+    'OVULACION': 'OVULATION',
+    'OVULACIÓN': 'OVULATION',
+    'OVULATION': 'OVULATION',
+    'LUTEA': 'LUTEAL',
+    'LÚTEA': 'LUTEAL',
+    'LUTEAL': 'LUTEAL'
+  };
+  const phaseKey = phaseMapping[safePhase.toUpperCase()] || 'MENSTRUAL';
   const phaseColor = theme.colors.phases[phaseKey] || theme.colors.accent;
 
   return (

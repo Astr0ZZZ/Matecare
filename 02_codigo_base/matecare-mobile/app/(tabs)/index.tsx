@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [dailyRec, setDailyRec] = useState<string>('');
   const [userPoints, setUserPoints] = useState(0);
   const [resetTimer, setResetTimer] = useState<number | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -33,13 +34,14 @@ export default function Dashboard() {
         return;
       }
 
-      const userId = user.id;
+      const currentUserId = user.id;
+      setUserId(currentUserId);
       
       // Lanzamos peticiones en paralelo para máxima velocidad
       const [recRes, missionRes, profileRes] = await Promise.all([
-        apiFetch(`/api/ai/recommendation/${userId}`),
-        apiFetch(`/api/missions/${userId}`),
-        apiFetch(`/api/profile/${userId}`)
+        apiFetch(`/api/ai/recommendation/${currentUserId}`),
+        apiFetch(`/api/missions/${currentUserId}`),
+        apiFetch(`/api/profile/${currentUserId}`)
       ]);
 
       if (recRes.ok) {
@@ -86,7 +88,7 @@ export default function Dashboard() {
     try {
       const res = await apiFetch(`/api/missions/${id}/progress`, {
         method: 'PATCH',
-        body: JSON.stringify({ progress: newProgress })
+        body: JSON.stringify({ progress: newProgress, userId })
       });
       if (res.ok) {
         const data = await res.json();
@@ -206,6 +208,7 @@ export default function Dashboard() {
                   <MissionCard
                     key={mission.id}
                     id={mission.id}
+                    userId={userId || ''}
                     title={mission.title}
                     description={mission.description}
                     progress={mission.progress}

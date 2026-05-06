@@ -33,7 +33,18 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
   const circumference = 2 * Math.PI * radio;
   
   const safePhase = phaseLabel || 'MENSTRUAL';
-  const phaseKey = safePhase.toUpperCase() as keyof typeof theme.colors.phases;
+  const phaseMapping: Record<string, keyof typeof theme.colors.phases> = {
+    'MENSTRUAL': 'MENSTRUAL',
+    'FOLICULAR': 'FOLLICULAR',
+    'FOLLICULAR': 'FOLLICULAR', // English
+    'OVULACION': 'OVULATION',
+    'OVULACIÓN': 'OVULATION',
+    'OVULATION': 'OVULATION', // English
+    'LUTEA': 'LUTEAL',
+    'LÚTEA': 'LUTEAL',
+    'LUTEAL': 'LUTEAL' // English
+  };
+  const phaseKey = phaseMapping[safePhase.toUpperCase()] || 'MENSTRUAL';
   const phaseColor = theme.colors.phases[phaseKey] || theme.colors.accent;
 
   const progress = useSharedValue(0);
