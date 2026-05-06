@@ -57,8 +57,16 @@ export default function Chat() {
             setFaseActual(data.cycle.phase);
           }
         }
-      } catch (e) {
-        console.error("Error cargando fase para chat:", e);
+      } catch (error: any) {
+        if (
+          error.name === 'AbortError' || 
+          error.message === 'Aborted' || 
+          String(error).includes('Aborted')
+        ) {
+          console.log('[Chat] Petición cancelada (Ignorado)');
+          return;
+        }
+        console.error("Error cargando fase para chat:", error);
       }
     };
     fetchPhase();

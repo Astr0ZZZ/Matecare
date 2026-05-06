@@ -56,8 +56,16 @@ export default function CalendarScreen() {
       }
 
       if (cycleData) generateMarkedDates(cycleData, missions);
-    } catch (e) {
-      console.error("Error cargando calendario:", e);
+    } catch (error: any) {
+      if (
+        error.name === 'AbortError' || 
+        error.message === 'Aborted' || 
+        String(error).includes('Aborted')
+      ) {
+        console.log('[Calendar] Petición cancelada (Ignorado)');
+        return;
+      }
+      console.error("Error cargando calendario:", error);
     }
   };
 

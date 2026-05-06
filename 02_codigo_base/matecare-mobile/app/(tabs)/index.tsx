@@ -66,8 +66,16 @@ export default function Dashboard() {
         setUserPoints(data.points || 0);
       }
 
-    } catch (e) {
-      console.error("Error cargando Dashboard:", e);
+    } catch (error: any) {
+      if (
+        error.name === 'AbortError' || 
+        error.message === 'Aborted' || 
+        String(error).includes('Aborted')
+      ) {
+        console.log('[Dashboard] Petición cancelada al cambiar de pantalla (Ignorado)');
+        return;
+      }
+      console.error("Error cargando Dashboard:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
