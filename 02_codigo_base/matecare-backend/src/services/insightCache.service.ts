@@ -114,7 +114,7 @@ export async function getInsight(req: InsightRequest): Promise<string> {
     });
 
     try {
-      await redis.set(`insight:${cacheKey}`, dbResult.insight, 'EX', CACHE_TTL_SECONDS);
+      await redis.set(`insight:${cacheKey}`, dbResult.insight, { EX: CACHE_TTL_SECONDS });
     } catch (e) { /* Redis opcional */ }
 
     return dbResult.insight;
@@ -128,7 +128,7 @@ export async function getInsight(req: InsightRequest): Promise<string> {
     { role: 'user' as const, content: prompt }
   ];
 
-  const insight = await askAI(messages);
+  const insight = await askAI(messages) || "Lo más importante hoy es la presencia tranquila.";
 
   // Guardar en DB
   const expiresAt = new Date();
@@ -142,7 +142,7 @@ export async function getInsight(req: InsightRequest): Promise<string> {
 
   // Guardar en Redis
   try {
-    await redis.set(`insight:${cacheKey}`, insight, 'EX', CACHE_TTL_SECONDS);
+    await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
   } catch (e) { /* Redis opcional */ }
 
   return insight;

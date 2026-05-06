@@ -81,7 +81,7 @@ ESTADO ACTUAL:
 
   const mbtiBlock = ctx.mbtiType ? `
 - Tipo MBTI: ${ctx.mbtiType} — ${MBTI_DESCRIPTIONS[ctx.mbtiType] || ''}
-- Estilo de apego: ${ctx.attachmentStyle || 'SECURE'} — ${ATTACHMENT_DESCRIPTIONS[(ctx.attachmentStyle as any) || 'SECURE']}
+    - Estilo de apego: ${ctx.attachmentStyle || 'SECURE'} — ${ATTACHMENT_DESCRIPTIONS[(ctx.attachmentStyle as keyof typeof ATTACHMENT_DESCRIPTIONS) || 'SECURE']}
 ${ctx.preferences?.music ? `- Música: ${PREFERENCE_DESCRIPTIONS.music[ctx.preferences.music as keyof typeof PREFERENCE_DESCRIPTIONS.music] || ''}` : ''}
 ${ctx.preferences?.plans ? `- Planes ideales: ${PREFERENCE_DESCRIPTIONS.plans[ctx.preferences.plans as keyof typeof PREFERENCE_DESCRIPTIONS.plans] || ''}` : ''}
 ${ctx.preferences?.stressedNeeds ? `- Cuando está estresada: ${PREFERENCE_DESCRIPTIONS.stressedNeeds[ctx.preferences.stressedNeeds as keyof typeof PREFERENCE_DESCRIPTIONS.stressedNeeds] || ''}` : ''}
