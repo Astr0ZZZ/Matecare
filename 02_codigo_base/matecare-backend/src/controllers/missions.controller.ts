@@ -62,17 +62,7 @@ export const resetMissions = async (req: Request, res: Response) => {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-    // Verificar Cooldown
-    if (profile.lastMissionReset) {
-      const hoursSinceReset = (Date.now() - new Date(profile.lastMissionReset).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceReset < COOLDOWN_HOURS) {
-        const remaining = Math.ceil(COOLDOWN_HOURS - hoursSinceReset);
-        return res.status(429).json({ 
-          error: `Matriz en recarga. Espera ${remaining} horas para nuevas coordenadas.`,
-          remainingHours: remaining
-        });
-      }
-    }
+    // Cooldown eliminado por solicitud del usuario
 
     // Borrar misiones de hoy y generar nuevas
     const now = new Date();
