@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import OpenAI from "openai";
 import dotenv from 'dotenv';
 import { detectCrisisTier, getCrisisInstructions } from './crisisDetector.service';
 
@@ -6,16 +7,45 @@ dotenv.config();
 
 // Inicializamos el cliente con la clase correcta de 2026
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 const MODEL_FALLBACK_CHAIN = [
   "gemini-2.0-flash-lite",
   "gemini-2.5-flash-lite-preview-06-17",
   "gemma-3-27b-it",
+  "gpt-5.5-instant", // Fallback de alta potencia (OpenAI 2026)
 ];
 
 async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {
   for (const model of MODEL_FALLBACK_CHAIN) {
     try {
+      // Caso OpenAI (GPT-5.5)
+      if (model.startsWith('gpt')) {
+        if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'pendiente') {
+          console.warn(`[AI] Saltando ${model}: Key no configurada.`);
+          continue;
+        }
+
+        // Convertir formato Gemini -> OpenAI
+        const messages = params.contents.map(c => ({
+          role: c.role === 'model' ? 'assistant' : 'user',
+          content: c.parts[0].text
+        }));
+
+        if (params.config.systemInstruction) {
+          messages.unshift({ role: 'system' as any, content: params.config.systemInstruction });
+        }
+
+        const response = await (openai as any).responses.create({
+          model,
+          input: messages.map(m => `${m.role}: ${m.content}`).join('\n\n'), // Formato responses.create 2026
+          // config adicional si fuera necesario
+        });
+        
+        return response.output_text || response.text || "";
+      }
+
+      // Caso Google (Gemini/Gemma)
       const cleanConfig = model.startsWith('gemma') 
         ? { ...params.config, thinkingConfig: undefined }
         : params.config;
@@ -30,10 +60,11 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
     } catch (err: any) {
       const isQuotaError = err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota');
       if (isQuotaError) {
-        console.warn(`[AI] Cuota agotada en ${model}, intentando siguiente...`);
+        console.warn(`[AI] Cuota agotada o error en ${model}, intentando siguiente...`);
         continue;
       }
-      throw err;
+      console.error(`[AI] Error crítico en ${model}:`, err.message);
+      continue; // Intentar el siguiente modelo de todas formas
     }
   }
   return "Lo más importante hoy es la presencia tranquila.";

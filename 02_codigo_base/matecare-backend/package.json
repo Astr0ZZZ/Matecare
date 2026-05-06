@@ -22,7 +22,7 @@
     "express": "^4.19.0",
     "jsonwebtoken": "^9.0.0",
     "node-cron": "^3.0.3",
-    "openai": "^4.52.0",
+    "openai": "^4.104.0",
     "redis": "^4.6.0",
     "stripe": "^16.0.0"
   },
