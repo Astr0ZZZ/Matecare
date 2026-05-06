@@ -7,6 +7,38 @@ dotenv.config();
 // Inicializamos el cliente con la clase correcta de 2026
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
+const MODEL_FALLBACK_CHAIN = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash-lite-preview-06-17",
+  "gemma-3-27b-it",
+];
+
+async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {
+  for (const model of MODEL_FALLBACK_CHAIN) {
+    try {
+      const cleanConfig = model.startsWith('gemma') 
+        ? { ...params.config, thinkingConfig: undefined }
+        : params.config;
+
+      const response = await client.models.generateContent({ 
+        model, 
+        contents: params.contents, 
+        config: cleanConfig 
+      });
+      
+      if (response.text) return response.text;
+    } catch (err: any) {
+      const isQuotaError = err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota');
+      if (isQuotaError) {
+        console.warn(`[AI] Cuota agotada en ${model}, intentando siguiente...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  return "Lo más importante hoy es la presencia tranquila.";
+}
+
 /**
  * UTILERÍA: Formatea el historial para que empiece por 'user' y alterne roles correctamente,
  * fusionando mensajes consecutivos en lugar de eliminarlos.
@@ -57,13 +89,7 @@ export async function askAI(messages: any[]) {
       config.systemInstruction = systemPrompt;
     }
 
-    const response = await client.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: contents,
-      config: config
-    });
-
-    return response.text;
+    return await generateWithFallback({ contents, config });
   } catch (error: any) {
     console.error("AI Error (Gen 3):", error.message);
     return `Lo más importante hoy es la presencia tranquila.`;
@@ -89,9 +115,8 @@ export async function generarConsejoTactico(mensaje: string, faseMujer: string, 
       contents.push({ role: 'user', parts: [{ text: mensaje }] });
     }
     
-    const response = await client.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: contents,
+    return await generateWithFallback({ 
+      contents, 
       config: {
         systemInstruction: `Eres MateCare, una IA táctica.\nContexto: Fase ${faseMujer}.\n${crisisAddon}\nResponde de forma directa y estructurada.`,
         thinkingConfig: { 
@@ -99,8 +124,6 @@ export async function generarConsejoTactico(mensaje: string, faseMujer: string, 
         }
       }
     });
-    
-    return response.text;
   } catch (error: any) {
     console.error("Error en Gemini 3 (Tactical):", error.message);
     throw new Error("Fallo en la comunicación con la matriz táctica.");
@@ -135,9 +158,7 @@ const FALLBACK_MISSIONS: Record<string, any[]> = {
 
 export async function generarMisionesTactica(contexto: any) {
   const phase = (contexto.phase || 'MENSTRUAL').toUpperCase();
-  try {
-    const response = await client.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+    const text = await generateWithFallback({
       contents: [{ role: 'user', parts: [{ text: `Actúa como MateCare. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}. Formato JSON: [{title, description, category}].` }] }],
       config: {
         responseMimeType: "application/json",
@@ -146,8 +167,6 @@ export async function generarMisionesTactica(contexto: any) {
         }
       }
     });
-
-    const text = response.text;
     if (!text) throw new Error("Respuesta vacía o bloqueada por seguridad");
 
     const jsonMatch = text.match(/\[[\s\S]*\]/);
