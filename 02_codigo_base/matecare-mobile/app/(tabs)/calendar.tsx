@@ -69,25 +69,28 @@ export default function CalendarScreen() {
     }
   };
 
-  const generateMarkedDates = (cycle, missions) => {
-    const marks = {};
+  const generateMarkedDates = (cycle: any, missions: any[]) => {
+    const marks: Record<string, any> = {};
     const today = new Date().toISOString().split('T')[0];
     
-    missions.forEach(m => {
-      if (!m.createdAt) return;
-      const date = new Date(m.createdAt).toISOString().split('T')[0];
-      marks[date] = { 
-        marked: true, 
-        dotColor: theme?.colors?.accent || '#CFAA3C',
-        selected: date === selectedDay,
-        selectedColor: date === selectedDay ? (theme?.colors?.accent || '#CFAA3C') : undefined
-      };
-    });
+    if (Array.isArray(missions)) {
+      missions.forEach(m => {
+        if (!m.createdAt) return;
+        const date = new Date(m.createdAt).toISOString().split('T')[0];
+        marks[date] = { 
+          marked: true, 
+          dotColor: theme?.colors?.accent || '#CFAA3C',
+          selected: date === selectedDay,
+          selectedColor: date === selectedDay ? (theme?.colors?.accent || '#CFAA3C') : undefined
+        };
+      });
+    }
 
-    if (!marks[today]) {
-      marks[today] = { selected: true, selectedColor: theme.colors.accent };
+    const activeDay = selectedDay || today;
+    if (!marks[activeDay]) {
+      marks[activeDay] = { selected: true, selectedColor: theme?.colors?.accent || '#CFAA3C' };
     } else {
-      marks[today] = { ...marks[today], selected: true, selectedColor: theme.colors.accent };
+      marks[activeDay] = { ...marks[activeDay], selected: true, selectedColor: theme?.colors?.accent || '#CFAA3C' };
     }
     setMarkedDates(marks);
   };
