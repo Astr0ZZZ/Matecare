@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, SafeAreaView } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { apiFetch } from '../../lib/api';
+import { apiFetch } from '../../services/api';
 import { SPACING, RADIUS } from '../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

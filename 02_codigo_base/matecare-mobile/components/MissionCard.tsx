@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import * as ImagePicker from 'expo-image-picker';
-import { apiFetch } from '../lib/api';
+import { apiFetch } from '../services/api';
 import { uploadMissionPhoto } from '../services/storage.service';
 import { supabase } from '../lib/supabase';
 
