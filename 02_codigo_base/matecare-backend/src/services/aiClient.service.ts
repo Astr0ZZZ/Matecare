@@ -158,6 +158,7 @@ const FALLBACK_MISSIONS: Record<string, any[]> = {
 
 export async function generarMisionesTactica(contexto: any) {
   const phase = (contexto.phase || 'MENSTRUAL').toUpperCase();
+  try {
     const text = await generateWithFallback({
       contents: [{ role: 'user', parts: [{ text: `Actúa como MateCare. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}. Formato JSON: [{title, description, category}].` }] }],
       config: {
