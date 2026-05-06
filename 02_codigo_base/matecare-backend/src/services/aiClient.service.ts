@@ -27,22 +27,23 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
         }
 
         // Convertir formato Gemini -> OpenAI
-        const messages = params.contents.map(c => ({
+        const messages: any[] = params.contents.map(c => ({
           role: c.role === 'model' ? 'assistant' : 'user',
           content: c.parts[0].text
         }));
 
         if (params.config.systemInstruction) {
-          messages.unshift({ role: 'system' as any, content: params.config.systemInstruction });
+          messages.unshift({ role: 'system', content: params.config.systemInstruction });
         }
 
-        const response = await (openai as any).responses.create({
+        const response = await openai.chat.completions.create({
           model,
-          input: messages.map(m => `${m.role}: ${m.content}`).join('\n\n'), // Formato responses.create 2026
-          // config adicional si fuera necesario
+          messages: messages,
+          max_tokens: 800,
+          temperature: 0.7
         });
         
-        return response.output_text || response.text || "";
+        return response.choices[0]?.message?.content || "";
       }
 
       // Caso Google (Gemini/Gemma)

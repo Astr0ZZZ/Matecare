@@ -4,6 +4,7 @@ import { redis } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
 import { buildMessages } from '../services/promptEngine.service';
 import { askAI } from '../services/aiClient.service';
+import { routeToAI, detectTier } from '../services/aiRouter.service';
 import { getInsight, detectInsightContext } from '../services/insightCache.service';
 import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
 import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
@@ -97,7 +98,8 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       preferences: personalityProfile?.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
     });
 
-    const aiResponse = await askAI(messages);
+    const tier = detectTier(mensaje);
+    const aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
     return res.json({ response: aiResponse, fromCache: false });
 
   } catch (error) {
@@ -173,7 +175,8 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
         conflictStyle: profile.conflictStyle,
         affectionStyle: profile.affectionStyle,
       });
-      aiResponse = (await askAI(messages)) || "";
+      const tier = detectTier(); // Economy tier para recomendaciones automáticas
+      aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
     }
 
     // Guardar en Redis y Memoria
