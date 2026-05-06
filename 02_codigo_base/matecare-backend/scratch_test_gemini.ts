@@ -14,7 +14,8 @@ async function test() {
       config: {
         systemInstruction: "Eres un asistente que solo responde 'OK'.",
         thinkingConfig: {
-          includeThoughts: true
+          includeThoughts: true,
+          thinkingLevel: ThinkingLevel.LOW
         }
       }
     });
