@@ -31,6 +31,10 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
   const centerX = 110;
   const centerY = 110;
   const circumference = 2 * Math.PI * radio;
+  
+  const safePhase = phaseLabel || 'MENSTRUAL';
+  const phaseKey = safePhase.toUpperCase() as keyof typeof theme.colors.phases;
+  const phaseColor = theme.colors.phases[phaseKey] || theme.colors.accent;
 
   const progress = useSharedValue(0);
   const flicker = useSharedValue(1);
@@ -111,7 +115,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
             ))}
             <AnimatedCircle
               cx={centerX} cy={centerY} r={radio}
-              stroke="url(#fireGrad)"
+              stroke={phaseColor}
               strokeWidth={20}
               fill="none"
               strokeDasharray={circumference}
@@ -129,7 +133,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
             <Circle cx={centerX} cy={centerY} r={radio - 10} stroke={theme.colors.glow} strokeWidth={1} fill="none" opacity={0.2} />
             <AnimatedCircle
               cx={centerX} cy={centerY} r={radio}
-              stroke={theme.colors.accent}
+              stroke={phaseColor}
               strokeWidth={2}
               fill="none"
               strokeDasharray="4, 4"
@@ -137,8 +141,8 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
               transform={`rotate(-90 ${centerX} ${centerY})`}
             />
             <AnimatedG originX={centerX} originY={centerY} rotation={progress.value * 360}>
-              <Circle cx={centerX + radio} cy={centerY} r={10} fill={theme.colors.accent} />
-              <Circle cx={centerX + radio} cy={centerY} r={15} stroke={theme.colors.accent} strokeWidth={1} opacity={0.5} />
+              <Circle cx={centerX + radio} cy={centerY} r={10} fill={phaseColor} />
+              <Circle cx={centerX + radio} cy={centerY} r={15} stroke={phaseColor} strokeWidth={1} opacity={0.5} />
             </AnimatedG>
           </Svg>
         );
@@ -163,7 +167,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
             ))}
             <AnimatedCircle
               cx={centerX} cy={centerY} r={radio}
-              stroke={theme.colors.accent}
+              stroke={phaseColor}
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={`${segmentLength}, ${circumference - segmentLength}`}
@@ -185,7 +189,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
             <Circle cx={centerX} cy={centerY} r={radio} stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} fill="none" />
             <AnimatedCircle
               cx={centerX} cy={centerY} r={radio}
-              stroke="url(#themeGrad)"
+              stroke={phaseColor}
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={circumference}
@@ -194,7 +198,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
               transform={`rotate(-90 ${centerX} ${centerY})`}
             />
             <AnimatedG originX={centerX} originY={centerY} rotation={progress.value * 360}>
-               <Circle cx={centerX + radio} cy={centerY} r={8} fill={theme.colors.accent} />
+               <Circle cx={centerX + radio} cy={centerY} r={8} fill={phaseColor} />
             </AnimatedG>
           </Svg>
         );
@@ -215,7 +219,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
         {renderCompass()}
 
         <View style={styles.centerInfo}>
-          <Text style={[styles.phaseLabel, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>
+          <Text style={[styles.phaseLabel, { color: phaseColor, fontFamily: theme.typography.boldFont }]}>
             {theme.visuals.hudName}
           </Text>
           <Text style={[styles.mainPhase, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>

@@ -13,7 +13,9 @@ interface PhaseCardProps {
 
 export default function PhaseCard({ phase, dayOfCycle }: PhaseCardProps) {
   const { theme } = useTheme();
-  const safePhase = phase || 'Fase Desconocida';
+  const safePhase = phase || 'MENSTRUAL';
+  const phaseKey = safePhase.toUpperCase() as keyof typeof theme.colors.phases;
+  const phaseColor = theme.colors.phases[phaseKey] || theme.colors.accent;
 
   return (
     <MotiView 
@@ -24,14 +26,14 @@ export default function PhaseCard({ phase, dayOfCycle }: PhaseCardProps) {
       <BlurView intensity={theme.visuals.material.blurIntensity} tint="dark" style={styles.glass}>
         <View style={styles.content}>
           <View style={styles.left}>
-            <Text style={[styles.label, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>ESTADO OPERATIVO</Text>
+            <Text style={[styles.label, { color: phaseColor, fontFamily: theme.typography.boldFont }]}>ESTADO OPERATIVO</Text>
             <Text style={[styles.phase, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>{safePhase.toUpperCase()}</Text>
-            <View style={[styles.badge, { backgroundColor: theme.colors.glow }]}>
-              <Text style={[styles.badgeText, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>DÍA {dayOfCycle || 1} DEL CICLO</Text>
+            <View style={[styles.badge, { backgroundColor: `${phaseColor}22`, borderColor: phaseColor, borderWidth: 1 }]}>
+              <Text style={[styles.badgeText, { color: phaseColor, fontFamily: theme.typography.boldFont }]}>DÍA {dayOfCycle || 1} DEL CICLO</Text>
             </View>
           </View>
           <View style={styles.right}>
-            <Ionicons name="shield-half" size={40} color={theme.colors.accent} />
+            <Ionicons name="shield-half" size={40} color={phaseColor} />
           </View>
         </View>
       </BlurView>
