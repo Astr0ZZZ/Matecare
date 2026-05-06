@@ -143,7 +143,8 @@ export const updateMissionProgress = async (req: Request, res: Response) => {
       });
     }
 
-    res.json(mission);
+    const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
+    res.json({ mission, newPoints: updatedUser?.points ?? 0 });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update mission' });
   }

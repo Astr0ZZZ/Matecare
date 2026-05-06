@@ -89,9 +89,9 @@ export default function Dashboard() {
         body: JSON.stringify({ progress: newProgress })
       });
       if (res.ok) {
-        setMissions(prev => prev.map(m => m.id === id ? { ...m, progress: newProgress } : m));
-        // Actualizar puntos
-        setUserPoints(prev => newProgress >= 100 ? prev + 10 : prev - 10);
+        const data = await res.json();
+        setMissions(prev => prev.map(m => m.id === id ? { ...m, ...data.mission } : m));
+        if (data.newPoints !== undefined) setUserPoints(data.newPoints);
       }
     } catch (e) {
       console.error("Error actualizando misión:", e);

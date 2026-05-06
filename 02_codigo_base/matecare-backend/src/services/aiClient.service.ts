@@ -95,7 +95,6 @@ export async function generarConsejoTactico(mensaje: string, faseMujer: string, 
       config: {
         systemInstruction: `Eres MateCare, una IA táctica.\nContexto: Fase ${faseMujer}.\n${crisisAddon}\nResponde de forma directa y estructurada.`,
         thinkingConfig: { 
-          includeThoughts: true,
           thinkingLevel: ThinkingLevel.LOW 
         }
       }
@@ -143,7 +142,6 @@ export async function generarMisionesTactica(contexto: any) {
       config: {
         responseMimeType: "application/json",
         thinkingConfig: { 
-          includeThoughts: true,
           thinkingLevel: ThinkingLevel.LOW 
         }
       }

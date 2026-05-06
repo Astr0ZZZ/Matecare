@@ -114,7 +114,7 @@ export async function getInsight(req: InsightRequest): Promise<string> {
     });
 
     try {
-      await redis.set(`insight:${cacheKey}`, dbResult.insight, { EX: CACHE_TTL_SECONDS });
+      await redis.setex(`insight:${cacheKey}`, CACHE_TTL_SECONDS, dbResult.insight);
     } catch (e) { /* Redis opcional */ }
 
     return dbResult.insight;
@@ -142,7 +142,7 @@ export async function getInsight(req: InsightRequest): Promise<string> {
 
   // Guardar en Redis
   try {
-    await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
+    await redis.setex(`insight:${cacheKey}`, CACHE_TTL_SECONDS, insight);
   } catch (e) { /* Redis opcional */ }
 
   return insight;
