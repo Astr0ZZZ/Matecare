@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CONFIG } from '../constants/config';
+import { apiFetch } from '../services/api';
 
 export interface Message {
   id: string;
@@ -13,7 +13,6 @@ export const useAIChat = () => {
   const [cargando, setCargando] = useState(false);
 
   const enviarMensaje = async (texto: string, faseActual: string) => {
-    // 1. Agregar mensaje del usuario a la UI
     const nuevoMensaje: Message = { 
       id: Date.now().toString(), 
       text: texto, 
@@ -25,13 +24,11 @@ export const useAIChat = () => {
     setCargando(true);
 
     try {
-      // 2. Llamada al backend
-      const response = await fetch(`${CONFIG.API_URL}/api/ai/chat`, {
+      const response = await apiFetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: CONFIG.TEST_USER_ID,
-          message: texto, 
+          mensaje: texto, 
+          faseActual: faseActual,
           history: mensajes.map(m => ({
             role: m.emisor === 'usuario' ? 'user' : 'assistant',
             content: m.text
@@ -43,12 +40,11 @@ export const useAIChat = () => {
       
       const data = await response.json();
 
-      // 3. Agregar respuesta de la IA a la UI
       setMensajes((prev) => [
         ...prev, 
         { 
           id: (Date.now() + 1).toString(), 
-          text: data.response, 
+          text: data.respuesta, 
           emisor: 'ia',
           timestamp: Date.now()
         }

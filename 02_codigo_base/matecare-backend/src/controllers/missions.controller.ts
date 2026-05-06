@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { buildMessages } from '../services/promptEngine.service';
-import { askAI } from '../services/aiClient.service';
+import { generarMisionesTactica } from '../services/aiClient.service';
+import { POINTS_ECONOMY } from '../services/points.service';
 
 export const getSuggestedMissions = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = (req as any).user?.id || req.params.userId;
 
   try {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
@@ -13,17 +13,7 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // 1. Ensure we have exactly 3 missions for today
     const today = new Date(new Date().setHours(0,0,0,0));
-    // Borrar solo misiones incompletas de días anteriores (no tocar las de hoy)
-    await prisma.mission.deleteMany({
-      where: {
-        userId,
-        isCompleted: false,
-        createdAt: { lt: today }
-      }
-    });
-
     const currentMissions = await prisma.mission.findMany({
       where: { userId, createdAt: { gte: today } }
     });
@@ -32,33 +22,7 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
       return res.json(currentMissions);
     }
 
-    // 2. If not, generate with AI
-    const messages = buildMessages({
-      phase: cycle.phase,
-      dayOfCycle: cycle.dayOfCycle,
-      daysUntilNextPhase: cycle.daysUntilNextPhase,
-      personalityType: profile.personalityType,
-      socialLevel: profile.socialLevel,
-      privacyLevel: profile.privacyLevel,
-      conflictStyle: profile.conflictStyle,
-      affectionStyle: profile.affectionStyle,
-      userInput: "Genera 3 misiones tácticas concretas para hoy. Devuélvelas en formato JSON: [{ \"title\": \"...\", \"description\": \"...\", \"category\": \"...\" }]. Solo el JSON."
-    });
-
-    const aiResponse = await askAI(messages);
-    
-    let missions = [];
-    try {
-      const jsonMatch = aiResponse.match(/\[.*\]/s);
-      if (jsonMatch) {
-        missions = JSON.parse(jsonMatch[0]);
-      }
-    } catch (e) {
-      missions = [
-        { title: 'Conexión suave', description: 'Un mensaje simple hoy vale por diez mañana.', category: 'SOCIAL' },
-        { title: 'Cuidado extra', description: 'Observa una necesidad antes de que la pida.', category: 'ACTS' }
-      ];
-    }
+    const missions = await generarMisionesTactica({ phase: cycle.phase });
 
     const savedMissions = await Promise.all(missions.slice(0, 3).map(async (m: any) => {
       return prisma.mission.create({
@@ -81,20 +45,132 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
   }
 };
 
+export const resetMissions = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id || req.body.userId;
+  const COOLDOWN_HOURS = 6;
+
+  try {
+    const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+    // Verificar Cooldown
+    if (profile.lastMissionReset) {
+      const hoursSinceReset = (Date.now() - new Date(profile.lastMissionReset).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceReset < COOLDOWN_HOURS) {
+        const remaining = Math.ceil(COOLDOWN_HOURS - hoursSinceReset);
+        return res.status(429).json({ 
+          error: `Matriz en recarga. Espera ${remaining} horas para nuevas coordenadas.`,
+          remainingHours: remaining
+        });
+      }
+    }
+
+    // Borrar misiones de hoy y generar nuevas
+    const today = new Date(new Date().setHours(0,0,0,0));
+    await prisma.mission.deleteMany({
+      where: { userId, createdAt: { gte: today } }
+    });
+
+    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
+    const missions = await generarMisionesTactica({ phase: cycle.phase });
+
+    const savedMissions = await Promise.all(missions.slice(0, 3).map(async (m: any) => {
+      return prisma.mission.create({
+        data: {
+          userId,
+          title: m.title,
+          description: m.description,
+          category: m.category || 'ROMANTIC',
+          phaseContext: cycle.phase as any
+        }
+      });
+    }));
+
+    // Actualizar timestamp de reset
+    await prisma.partnerProfile.update({
+      where: { userId },
+      data: { lastMissionReset: new Date() }
+    });
+
+    res.json(savedMissions);
+  } catch (error) {
+    res.status(500).json({ error: 'Reset failed' });
+  }
+};
+
 export const updateMissionProgress = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { progress } = req.body;
+  const userId = (req as any).user?.id || req.body.userId;
 
   try {
+    const oldMission = await prisma.mission.findUnique({ where: { id } });
+    if (!oldMission) return res.status(404).json({ error: 'Mission not found' });
+
+    const wasCompleted = oldMission.isCompleted;
+    const isNowCompleted = progress >= 100;
+
     const mission = await prisma.mission.update({
       where: { id },
       data: { 
         progress,
-        isCompleted: progress >= 100
+        isCompleted: isNowCompleted,
+        completedAt: isNowCompleted ? new Date() : null
       },
     });
+
+    // Lógica de Puntos
+    if (!wasCompleted && isNowCompleted) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { points: { increment: POINTS_ECONOMY.MISSION_COMPLETED } }
+      });
+    } else if (wasCompleted && !isNowCompleted) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { points: { decrement: POINTS_ECONOMY.MISSION_COMPLETED } }
+      });
+    }
+
     res.json(mission);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update mission' });
   }
 };
+
+export const uploadEvidence = async (req: Request, res: Response) => {
+  const { missionId, imageUrl } = req.body;
+  const userId = (req as any).user?.id || req.body.userId;
+
+  try {
+    const mission = await prisma.mission.update({
+      where: { id: missionId },
+      data: { imageUrl }
+    });
+
+    // Bonus por foto
+    await prisma.user.update({
+      where: { id: userId },
+      data: { points: { increment: POINTS_ECONOMY.EVIDENCE_UPLOADED } }
+    });
+
+    res.json({ success: true, mission });
+  } catch (error) {
+    res.status(500).json({ error: 'Evidence upload failed' });
+  }
+};
+
+export const getMissionHistory = async (req: Request, res: Response) => {
+  const userId = req.params.userId || (req as any).user?.id;
+  try {
+    const missions = await prisma.mission.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(missions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+};
+
+

@@ -13,12 +13,17 @@ model User {
   email         String    @unique
   passwordHash  String
   plan          Plan      @default(FREE)
+  
+  // Gamificación
+  points        Int       @default(0)
+  
   createdAt     DateTime  @default(now())
 
-  partnerProfile  PartnerProfile?
-  aiInteractions  AIInteraction[]
-  notifications   Notification[]
-  missions        Mission[]
+  partnerProfile     PartnerProfile?
+  personalityProfile PersonalityProfile?
+  aiInteractions     AIInteraction[]
+  notifications      Notification[]
+  missions           Mission[]
 }
 
 enum Plan {
@@ -32,21 +37,83 @@ model PartnerProfile {
   user             User      @relation(fields: [userId], references: [id])
 
   // Datos del ciclo
-  cycleLength      Int       // días (ej: 28)
-  periodDuration   Int       // días (ej: 5)
+  cycleLength      Int       
+  periodDuration   Int       
   lastPeriodDate   DateTime
   isIrregular      Boolean   @default(false)
-  irregularRange   Int?      // variación en días si es irregular
+  irregularRange   Int?      
 
-  // Perfil de personalidad
+  // Perfil de personalidad base
   personalityType  PersonalityType
   socialLevel      SocialLevel
   privacyLevel     PrivacyLevel
   conflictStyle    ConflictStyle
   affectionStyle   AffectionStyle
 
+  // Control de misiones
+  lastMissionReset DateTime?
+
+  // MBTI Link
+  personalityProfileId String?
+
   cycleLogs        CycleLog[]
   updatedAt        DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// MBTI y perfil de personalidad enriquecido
+// ─────────────────────────────────────────────
+
+model PersonalityProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+
+  // Tipo MBTI calculado (ej: "INFJ")
+  mbtiType        String?
+
+  // Confianza por dimensión (0.0 a 1.0)
+  mbtiConfidence  Json     @default("{}")
+
+  // Estilo de apego
+  attachmentStyle AttachmentStyle @default(SECURE)
+
+  // Preferencias enriquecidas del quiz
+  preferences     Json     @default("{}")
+
+  // Dimensiones ya exploradas
+  exploredDims    String[] @default([])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Cache de insights generados por IA
+model PersonalityInsight {
+  id          String   @id @default(uuid())
+
+  // Clave única: "INFJ_LUTEAL_dia_dificil_VERBAL_AVOIDANT"
+  cacheKey    String   @unique
+  insight     String
+  hitCount    Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+}
+
+enum AttachmentStyle {
+  ANXIOUS    
+  SECURE     
+  AVOIDANT   
+}
+
+enum InsightContext {
+  plan_romantico
+  conflicto_tension
+  necesita_espacio
+  sorpresa_detalle
+  comunicacion_importante
+  dia_dificil
 }
 
 enum PersonalityType {
@@ -56,9 +123,9 @@ enum PersonalityType {
 }
 
 enum SocialLevel {
-  LOW     // poco uso de redes, vida privada
+  LOW     
   MEDIUM
-  HIGH    // muy activa en redes, social
+  HIGH    
 }
 
 enum PrivacyLevel {
@@ -68,16 +135,16 @@ enum PrivacyLevel {
 }
 
 enum ConflictStyle {
-  AVOIDANT    // evita conflictos, necesita tiempo
-  DIRECT      // prefiere hablar de frente
-  PASSIVE     // lo deja pasar pero lo siente
+  AVOIDANT    
+  DIRECT      
+  PASSIVE     
 }
 
 enum AffectionStyle {
-  PHYSICAL    // contacto físico
-  VERBAL      // palabras de afirmación
-  ACTS        // actos de servicio
-  QUALITY     // tiempo de calidad
+  PHYSICAL    
+  VERBAL      
+  ACTS        
+  QUALITY     
 }
 
 model CycleLog {
@@ -91,17 +158,17 @@ model CycleLog {
 }
 
 enum CyclePhase {
-  MENSTRUAL     // días 1-5
-  FOLLICULAR    // días 6-13
-  OVULATION     // días 14-16
-  LUTEAL        // días 17-28
+  MENSTRUAL     
+  FOLLICULAR    
+  OVULATION     
+  LUTEAL        
 }
 
 model AIInteraction {
   id            String    @id @default(uuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id])
-  userInput     String?   // null si fue automática (notif)
+  userInput     String?   
   aiResponse    String
   phaseContext  CyclePhase
   promptTokens  Int
@@ -120,10 +187,10 @@ model Notification {
 }
 
 enum NotifType {
-  PHASE_CHANGE    // cambió de fase
-  DAILY_TIP       // consejo del día
-  PERIOD_SOON     // aviso 2 días antes
-  CUSTOM          // enviada por el usuario
+  PHASE_CHANGE    
+  DAILY_TIP       
+  PERIOD_SOON     
+  CUSTOM          
 }
 
 model Mission {
@@ -132,10 +199,17 @@ model Mission {
   user          User      @relation(fields: [userId], references: [id])
   title         String
   description   String?
-  progress      Int       @default(0) // 0 to 100
+  progress      Int       @default(0) 
   isCompleted   Boolean   @default(false)
   phaseContext  CyclePhase
-  category      String?   // ej: "Conexión", "Energía", "Espacio"
+  category      String?   
+  
+  // Gamificación y Evidencia
+  imageUrl      String?   
+  pointsAwarded Int       @default(0)
+  completedAt   DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
+

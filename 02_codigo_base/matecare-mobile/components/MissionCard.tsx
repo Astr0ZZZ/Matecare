@@ -1,9 +1,20 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { View as MotiView } from 'moti';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle, ActivityIndicator } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withSequence, 
+  withTiming 
+} from 'react-native-reanimated';
+import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../context/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView } from 'moti';
+import * as ImagePicker from 'expo-image-picker';
+import { apiFetch } from '../services/api';
+import { supabase } from '../lib/supabase';
 
 interface MissionCardProps {
   id: string;
@@ -15,128 +26,250 @@ interface MissionCardProps {
   onPress: () => void;
 }
 
-export default function MissionCard({ title, description, progress, category, index = 0, onPress }: MissionCardProps) {
+export default function MissionCard({ 
+  id,
+  title, 
+  description, 
+  progress, 
+  category, 
+  index = 0, 
+  onPress 
+}: MissionCardProps) {
   const { theme } = useTheme();
+  const [uploading, setUploading] = useState(false);
   const isCompleted = progress >= 100;
+  const safeProgress = Math.min(Math.max(progress, 0), 100);
+  const isCyber = theme.id === 'CYBER';
+
+  const flicker = useSharedValue(1);
+
+  useEffect(() => {
+    if (isCyber) {
+      flicker.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 100 }),
+          withTiming(1, { duration: 200 })
+        ),
+        -1, true
+      );
+    }
+  }, [isCyber]);
+
+  const flickerStyle = useAnimatedStyle(() => ({
+    opacity: flicker.value,
+    shadowOpacity: flicker.value * 0.5,
+  }));
+
+  const handleCaptureEvidence = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        setUploading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        const res = await apiFetch('/api/missions/upload-evidence', {
+          method: 'POST',
+          body: JSON.stringify({
+            missionId: id,
+            imageUrl: result.assets[0].uri,
+            userId: user?.id
+          })
+        });
+
+        if (res.ok) {
+          alert("Evidencia táctica asegurada. +50 Puntos.");
+          onPress(); 
+        }
+      }
+    } catch (e) {
+      console.error("Error capturando evidencia:", e);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
+  const renderProgressBar = () => {
+    if (theme.visuals.material.progressStyle === 'segmented') {
+      const segments = 10;
+      const activeSegments = Math.round((safeProgress / 100) * segments);
+      
+      return (
+        <View style={styles.segmentedTrack}>
+          {[...Array(segments)].map((_, i) => (
+            <View 
+              key={i} 
+              style={[
+                styles.segment, 
+                { 
+                  backgroundColor: i < activeSegments ? theme.colors.accent : 'rgba(255,255,255,0.05)',
+                  borderColor: i < activeSegments ? theme.colors.accent : 'transparent',
+                  borderWidth: isCyber ? 0.5 : 0
+                }
+              ]} 
+            />
+          ))}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.barTrack}>
+        <LinearGradient
+          colors={theme.visuals.goldGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ width: `${safeProgress}%`, height: '100%', borderRadius: 3 }}
+        />
+      </View>
+    );
+  };
 
   return (
     <MotiView
       from={{ opacity: 0, translateY: 20 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 600, delay: index * 100 }}
+      transition={{ delay: index * 100, type: 'timing', duration: 500 }}
       style={[
-        styles.container, 
+        styles.cardContainer,
         { 
           backgroundColor: theme.colors.card, 
-          borderColor: isCompleted ? theme.colors.primary : theme.colors.border,
-          borderLeftColor: theme.colors.accent, // Acento Oro/Platino sugerido
-          borderLeftWidth: 6
+          borderColor: theme.colors.border,
+          shadowColor: isCyber ? theme.colors.accent : 'transparent'
         },
-        isCompleted && { opacity: 0.7 }
+        isCyber && flickerStyle
       ]}
     >
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.content}>
-        <View style={styles.mainRow}>
-          <View style={[
-            styles.iconContainer, 
-            { backgroundColor: isCompleted ? theme.colors.primary + '15' : theme.colors.accent + '15' }
-          ]}>
-            <Ionicons 
-              name={isCompleted ? "checkmark-circle" : theme.icons.mission as any} 
-              size={24} 
-              color={isCompleted ? theme.colors.primary : theme.colors.accent} 
-            />
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.content}>
+        <View style={styles.headerRow}>
+          <View style={[styles.iconBox, { backgroundColor: isCompleted ? theme.colors.glow : 'rgba(255, 255, 255, 0.05)' }]}>
+            {isCompleted ? (
+              <Ionicons name="checkmark-circle" size={24} color={theme.colors.accent} />
+            ) : (
+              <Text style={{ fontSize: 24 }}>{theme.visuals.emojiSet.mission}</Text>
+            )}
           </View>
-          <View style={styles.textContainer}>
-            <Text style={[
-              styles.title, 
-              { color: theme.colors.text, fontFamily: theme.typography.titleFont },
-              isCompleted && styles.completedText
-            ]}>
+          <View style={styles.titleBox}>
+            <Text style={[styles.missionTitle, { color: theme.colors.text, fontFamily: theme.typography.boldFont }]}>
               {title}
             </Text>
-            <Text 
-              style={[styles.description, { color: theme.colors.textMuted }]} 
-              numberOfLines={2}
-            >
-              {description}
+            <Text style={[styles.missionCategory, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>
+              {category.toUpperCase()}
             </Text>
           </View>
-        </View>
-        
-        <View style={[styles.footer, { borderTopColor: theme.colors.border + '30' }]}>
-          <View style={[styles.tag, { backgroundColor: theme.colors.primary + '10' }]}>
-            <Text style={[styles.tagText, { color: theme.colors.primary }]}>{category.toUpperCase()}</Text>
-          </View>
-          {isCompleted && (
-            <Text style={[styles.statusText, { color: theme.colors.primary }]}>MISIÓN CUMPLIDA</Text>
+          {!isCompleted && (
+            <TouchableOpacity 
+              onPress={handleCaptureEvidence} 
+              style={[styles.cameraButton, { borderColor: theme.colors.accent }]}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={theme.colors.accent} />
+              ) : (
+                <Ionicons name="camera" size={20} color={theme.colors.accent} />
+              )}
+            </TouchableOpacity>
           )}
         </View>
+
+
+        <Text style={[styles.missionDesc, { color: theme.colors.textMuted, fontFamily: theme.typography.bodyFont }]} numberOfLines={2}>
+          {description}
+        </Text>
+
+        {renderProgressBar()}
+
+        {isCompleted && (
+          <View style={[styles.badge, { borderColor: theme.colors.accent, backgroundColor: theme.colors.glow }]}>
+            <Text style={[styles.badgeText, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>
+              MISIÓN ASEGURADA
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     </MotiView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  cardContainer: {
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
-    borderWidth: 1,
+    borderWidth: 0.5,
     overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    elevation: 2,
+    shadowRadius: 5,
   },
   content: {
-    padding: SPACING.md,
+    padding: SPACING.lg,
   },
-  mainRow: {
+  headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  textContainer: {
+  titleBox: {
     flex: 1,
   },
-  title: {
+  missionTitle: {
     fontSize: 16,
-    marginBottom: 4,
   },
-  description: {
+  missionCategory: {
+    fontSize: 8,
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  missionDesc: {
     fontSize: 13,
     lineHeight: 18,
+    marginBottom: 16,
   },
-  completedText: {
-    textDecorationLine: 'none',
+  barTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  footer: {
+  segmentedTrack: {
     flexDirection: 'row',
+    height: 8,
     justifyContent: 'space-between',
+  },
+  segment: {
+    flex: 1,
+    marginHorizontal: 1,
+    height: '100%',
+    borderRadius: 1,
+  },
+  badge: {
+    marginTop: 14,
     alignItems: 'center',
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  badgeText: {
+    fontSize: 8,
+    letterSpacing: 1.5,
   },
-  tagText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+  cameraButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginLeft: 10,
   }
 });

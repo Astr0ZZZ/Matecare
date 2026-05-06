@@ -2,6 +2,12 @@ import {
   CyclePhase, PersonalityType, SocialLevel,
   PrivacyLevel, ConflictStyle, AffectionStyle
 } from '@prisma/client';
+import { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
+import {
+  MBTI_DESCRIPTIONS,
+  ATTACHMENT_DESCRIPTIONS,
+  PREFERENCE_DESCRIPTIONS
+} from './personalityMapper.service';
 
 export interface PromptContext {
   phase: CyclePhase;
@@ -14,6 +20,15 @@ export interface PromptContext {
   affectionStyle: AffectionStyle;
   userInput?: string;
   interactionHistory?: { role: 'user' | 'assistant'; content: string }[];
+
+  // NUEVOS — opcionales para compatibilidad
+  mbtiType?: MBTIType;
+  attachmentStyle?: AttachmentStyle;
+  preferences?: {
+    music?: string;
+    plans?: string;
+    stressedNeeds?: string;
+  };
 }
 
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
@@ -64,8 +79,17 @@ ESTADO ACTUAL:
 - Lenguaje de amor: ${ctx.affectionStyle} (${AFFECTION_DESCRIPTIONS[ctx.affectionStyle]})
 `;
 
-  return `${base}\n${contextBlock}`;
+  const mbtiBlock = ctx.mbtiType ? `
+- Tipo MBTI: ${ctx.mbtiType} — ${MBTI_DESCRIPTIONS[ctx.mbtiType] || ''}
+- Estilo de apego: ${ctx.attachmentStyle || 'SECURE'} — ${ATTACHMENT_DESCRIPTIONS[(ctx.attachmentStyle as any) || 'SECURE']}
+${ctx.preferences?.music ? `- Música: ${PREFERENCE_DESCRIPTIONS.music[ctx.preferences.music as keyof typeof PREFERENCE_DESCRIPTIONS.music] || ''}` : ''}
+${ctx.preferences?.plans ? `- Planes ideales: ${PREFERENCE_DESCRIPTIONS.plans[ctx.preferences.plans as keyof typeof PREFERENCE_DESCRIPTIONS.plans] || ''}` : ''}
+${ctx.preferences?.stressedNeeds ? `- Cuando está estresada: ${PREFERENCE_DESCRIPTIONS.stressedNeeds[ctx.preferences.stressedNeeds as keyof typeof PREFERENCE_DESCRIPTIONS.stressedNeeds] || ''}` : ''}
+` : '';
+
+  return `${base}\n${contextBlock}${mbtiBlock}`;
 }
+
 
 export function buildMessages(ctx: PromptContext) {
   const system = buildSystemPrompt(ctx);

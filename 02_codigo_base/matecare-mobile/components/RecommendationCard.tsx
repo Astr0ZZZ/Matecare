@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
-import { useTheme } from '../context/ThemeContext';
 
 interface RecommendationCardProps {
   title: string;
@@ -14,54 +13,63 @@ export default function RecommendationCard({ title, content }: RecommendationCar
   const { theme } = useTheme();
 
   return (
-    <MotiView 
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 800, delay: 600 }}
-      style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: theme.colors.accent + '15' }]}>
-        <Ionicons name={theme.icons.recommendation as any} size={24} color={theme.colors.accent} />
+    <View style={[styles.container, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <View style={styles.paddingBox}>
+        <View style={styles.header}>
+          <View style={[styles.iconBox, { backgroundColor: theme.colors.glow }]}>
+            <Ionicons name="bulb" size={18} color={theme.colors.accent} />
+          </View>
+          <Text style={[styles.title, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>{title.toUpperCase()}</Text>
+        </View>
+        <Text style={[styles.content, { color: theme.colors.text, fontFamily: theme.typography.bodyFont }]}>{content}</Text>
+        <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+          <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>GUÍA TÁCTICA GEMINI 3</Text>
+        </View>
       </View>
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.colors.primary, fontFamily: theme.typography.titleFont }]}>
-          {title}
-        </Text>
-        <Text style={[styles.text, { color: theme.colors.text }]}>{content}</Text>
-      </View>
-    </MotiView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: SPACING.lg,
+  container: {
     borderRadius: RADIUS.lg,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    overflow: 'hidden',
     borderWidth: 1,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.md,
+  paddingBox: {
+    padding: SPACING.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  content: {
-    flex: 1,
+    marginRight: 10,
   },
   title: {
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 2,
   },
-  text: {
-    fontSize: 14,
-    lineHeight: 20,
+  content: {
+    fontSize: 15,
+    lineHeight: 24,
+    fontStyle: 'italic',
   },
+  footer: {
+    marginTop: 15,
+    borderTopWidth: 1,
+    paddingTop: 10,
+  },
+  footerText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  }
 });

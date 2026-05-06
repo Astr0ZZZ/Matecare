@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { COLORS, TYPOGRAPHY, SPACING } from '../../constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { TYPOGRAPHY, SPACING, RADIUS } from '../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
+import { useTheme } from '../../context/ThemeContext';
 
 // Configuración de idioma segura
 try {
@@ -22,12 +24,12 @@ try {
 
 export default function CycleSetup() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [cycleLength, setCycleLength] = useState(28);
   const [periodDuration, setPeriodDuration] = useState(5);
 
   const handleNext = () => {
-    // Asegurar que la fecha es válida
     const dateObj = new Date(selectedDate);
     const dateString = dateObj.getTime() ? dateObj.toISOString() : new Date().toISOString();
 
@@ -42,158 +44,156 @@ export default function CycleSetup() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[COLORS.light.greenDark, '#0A3323']}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>Configura el Ciclo</Text>
-        <Text style={styles.headerSubtitle}>Esto nos ayuda a ser precisos con los consejos.</Text>
-      </LinearGradient>
+    <LinearGradient colors={[theme.colors.background, theme.colors.primary]} style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }} style={styles.header}>
+            <Text style={[styles.headerTitle, { color: theme.colors.accent, fontFamily: theme.typography.titleFont }]}>Matriz de Ciclo</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.textMuted }]}>Sincroniza el estado biológico para la IA.</Text>
+          </MotiView>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 500 }}
-        >
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>¿Cuándo empezó su último periodo?</Text>
-            <Calendar
-              onDayPress={(day: any) => setSelectedDate(day.dateString)}
-              markedDates={{
-                [selectedDate]: { selected: true, selectedColor: COLORS.light.greenDark }
-              }}
-              theme={{
-                calendarBackground: '#FFFFFF',
-                textSectionTitleColor: COLORS.light.textMuted,
-                selectedDayBackgroundColor: COLORS.light.greenDark,
-                selectedDayTextColor: '#ffffff',
-                todayTextColor: COLORS.light.gold,
-                dayTextColor: COLORS.light.greenDark,
-                textDisabledColor: '#d9e1e8',
-                arrowColor: COLORS.light.greenDark,
-                monthTextColor: COLORS.light.greenDark,
-                indicatorColor: COLORS.light.greenDark,
-                textDayFontSize: 14,
-                textMonthFontSize: 16,
-                textDayHeaderFontSize: 12
-              }}
-              style={styles.calendar}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>¿Cuánto suele durar su ciclo?</Text>
-            <View style={styles.counterContainer}>
-              <TouchableOpacity 
-                style={styles.counterButton}
-                onPress={() => setCycleLength(Math.max(21, cycleLength - 1))}
-              >
-                <Text style={styles.counterButtonText}>-</Text>
-              </TouchableOpacity>
-              <View style={styles.counterValueContainer}>
-                <Text style={styles.counterValue}>{cycleLength}</Text>
-                <Text style={styles.counterUnit}>días</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.counterButton}
-                onPress={() => setCycleLength(Math.min(35, cycleLength + 1))}
-              >
-                <Text style={styles.counterButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>¿Cuánto dura su regla?</Text>
-            <View style={styles.counterContainer}>
-              <TouchableOpacity 
-                style={styles.counterButton}
-                onPress={() => setPeriodDuration(Math.max(3, periodDuration - 1))}
-              >
-                <Text style={styles.counterButtonText}>-</Text>
-              </TouchableOpacity>
-              <View style={styles.counterValueContainer}>
-                <Text style={styles.counterValue}>{periodDuration}</Text>
-                <Text style={styles.counterUnit}>días</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.counterButton}
-                onPress={() => setPeriodDuration(Math.min(10, periodDuration + 1))}
-              >
-                <Text style={styles.counterButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <TouchableOpacity 
-            style={styles.nextButton}
-            onPress={handleNext}
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 500 }}
           >
-            <Text style={styles.nextButtonText}>Continuar al Test →</Text>
-          </TouchableOpacity>
-        </MotiView>
-      </ScrollView>
-    </View>
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.accent }]}>Último periodo registrado</Text>
+              <Calendar
+                onDayPress={(day: any) => setSelectedDate(day.dateString)}
+                markedDates={{
+                  [selectedDate]: { selected: true, selectedColor: theme.colors.accent }
+                }}
+                theme={{
+                  calendarBackground: theme.colors.card,
+                  textSectionTitleColor: theme.colors.accent,
+                  selectedDayBackgroundColor: theme.colors.accent,
+                  selectedDayTextColor: theme.colors.background,
+                  todayTextColor: theme.colors.accent,
+                  dayTextColor: theme.colors.text,
+                  textDisabledColor: theme.colors.border,
+                  arrowColor: theme.colors.accent,
+                  monthTextColor: theme.colors.accent,
+                  indicatorColor: theme.colors.accent,
+                  textDayFontSize: 14,
+                  textMonthFontSize: 16,
+                  textDayHeaderFontSize: 12,
+                  textDayFontFamily: theme.typography.bodyFont,
+                  textMonthFontFamily: theme.typography.boldFont
+                }}
+                style={[styles.calendar, { borderColor: theme.colors.border }]}
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.accent }]}>Duración estimada del ciclo</Text>
+              <View style={[styles.counterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <TouchableOpacity 
+                  style={[styles.counterButton, { backgroundColor: theme.colors.background }]}
+                  onPress={() => setCycleLength(Math.max(21, cycleLength - 1))}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.accent }]}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.counterValueContainer}>
+                  <Text style={[styles.counterValue, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>{cycleLength}</Text>
+                  <Text style={[styles.counterUnit, { color: theme.colors.textMuted }]}>DÍAS</Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.counterButton, { backgroundColor: theme.colors.background }]}
+                  onPress={() => setCycleLength(Math.min(35, cycleLength + 1))}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.accent }]}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.accent }]}>Duración de la fase menstrual</Text>
+              <View style={[styles.counterContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <TouchableOpacity 
+                  style={[styles.counterButton, { backgroundColor: theme.colors.background }]}
+                  onPress={() => setPeriodDuration(Math.max(3, periodDuration - 1))}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.accent }]}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.counterValueContainer}>
+                  <Text style={[styles.counterValue, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>{periodDuration}</Text>
+                  <Text style={[styles.counterUnit, { color: theme.colors.textMuted }]}>DÍAS</Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.counterButton, { backgroundColor: theme.colors.background }]}
+                  onPress={() => setPeriodDuration(Math.min(10, periodDuration + 1))}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.accent }]}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.nextButton, { shadowColor: theme.colors.accent }]}
+              onPress={handleNext}
+            >
+              <LinearGradient
+                colors={[theme.colors.accent, theme.colors.accent]}
+                style={styles.gradientButton}
+              >
+                <Text style={[styles.nextButtonText, { fontFamily: theme.typography.boldFont }]}>CONTINUAR AL TEST TÁCTICO →</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </MotiView>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F5F0' },
+  container: { flex: 1 },
   header: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: SPACING.lg,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingBottom: 30,
+    marginTop: 20
   },
   headerTitle: {
-    fontSize: 28,
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
-    color: '#FFFFFF',
+    fontSize: 32,
     marginBottom: 8,
+    letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 14,
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
   },
   content: { padding: SPACING.lg },
-  section: { marginBottom: 32 },
+  section: { marginBottom: 35 },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: TYPOGRAPHY.fontFamily.semiBold,
-    color: COLORS.light.greenDark,
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 15,
+    textTransform: 'uppercase',
   },
   calendar: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E8E4DF',
     overflow: 'hidden',
+    elevation: 2,
   },
   counterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 10,
+    borderRadius: 24,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#E8E4DF',
   },
   counterButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#F0F4E8',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
   counterButtonText: {
-    fontSize: 24,
-    color: COLORS.light.greenDark,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   counterValueContainer: {
@@ -201,26 +201,29 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   counterValue: {
-    fontSize: 42,
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
-    color: COLORS.light.greenDark,
-    lineHeight: 50,
+    fontSize: 44,
+    lineHeight: 52,
   },
   counterUnit: {
-    fontSize: 12,
-    fontFamily: TYPOGRAPHY.fontFamily.semiBold,
-    color: COLORS.light.textMuted,
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   nextButton: {
-    backgroundColor: COLORS.light.greenDark,
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
+    borderRadius: 20,
+    overflow: 'hidden',
     marginTop: 20,
+    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  gradientButton: {
+    padding: 20,
+    alignItems: 'center',
   },
   nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
+    color: '#000',
+    fontSize: 14,
+    letterSpacing: 1.5,
   },
 });

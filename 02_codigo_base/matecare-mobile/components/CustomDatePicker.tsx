@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { COLORS, TYPOGRAPHY } from '../constants/theme';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { TYPOGRAPHY } from '../constants/theme';
 
 interface CustomDatePickerProps {
   date: Date;
@@ -67,39 +67,41 @@ const styles = StyleSheet.create({
     padding: 15,
     borderWidth: 1,
     borderColor: '#E8E4DF',
+    elevation: 2,
   },
   selector: {
     alignItems: 'center',
     flex: 1,
   },
   label: {
-    fontSize: 10,
-    fontFamily: TYPOGRAPHY.fontFamily.semiBold,
-    color: COLORS.light.textMuted,
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#888',
     marginBottom: 8,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   button: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F0F4E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    fontSize: 20,
-    color: COLORS.light.greenDark,
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
+    fontSize: 24,
+    color: '#044422',
+    fontWeight: 'bold',
   },
   valueContainer: {
-    marginVertical: 10,
+    marginVertical: 8,
     minWidth: 40,
     alignItems: 'center',
   },
   value: {
-    fontSize: 22,
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
-    color: COLORS.light.greenDark,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#044422',
   },
 });

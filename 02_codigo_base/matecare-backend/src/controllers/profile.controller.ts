@@ -1,75 +1,93 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { mapQuizToPersonality } from '../services/personalityMapper.service';
+import { QuizAnswers } from '../../../shared/types/personality.types';
 
 export const saveProfile = async (req: Request, res: Response) => {
   console.log('--- Incoming Save Profile Request ---');
-  console.log('Body:', JSON.stringify(req.body, null, 2));
-  
-  const { userId, cycleLength, periodDuration, lastPeriodDate, personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle } = req.body;
+
+  const userId = (req as any).user?.id || req.body.userId;
+  const email = (req as any).user?.email || `${userId}@matecare.com`;
+
+  const {
+    cycleLength, periodDuration, lastPeriodDate,
+    // Campos originales del quiz
+    personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle,
+    // Nuevos campos MBTI
+    thinkingStyle, decisionStyle, planningStyle,
+    attachmentStyle, preferredPlans, musicMood, stressedNeeds
+  } = req.body;
+
+  if (!userId) return res.status(401).json({ error: 'Usuario no identificado' });
 
   try {
-    // Para desarrollo: Asegurar que el usuario existe
+    // 1. Sincronizar usuario
     let user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       user = await prisma.user.create({
-        data: {
-          id: userId,
-          email: `${userId}@test.com`,
-          passwordHash: 'dummy-hash',
-        }
+        data: { id: userId, email: email, passwordHash: 'auth-managed' }
       });
     }
 
+    // 2. Guardar PartnerProfile
     const profile = await prisma.partnerProfile.upsert({
       where: { userId },
-      update: {
-        cycleLength,
-        periodDuration,
-        lastPeriodDate: new Date(lastPeriodDate),
-        personalityType,
-        socialLevel,
-        privacyLevel,
-        conflictStyle,
-        affectionStyle,
-      },
-      create: {
-        userId,
-        cycleLength,
-        periodDuration,
-        lastPeriodDate: new Date(lastPeriodDate),
-        personalityType,
-        socialLevel,
-        privacyLevel,
-        conflictStyle,
-        affectionStyle,
-      },
+      update: { cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
+      create: { userId, cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
     });
 
+    // 3. Si vienen los campos MBTI, calcular y guardar PersonalityProfile
+    if (thinkingStyle && decisionStyle && planningStyle) {
+      const quizAnswers: QuizAnswers = {
+        personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle,
+        thinkingStyle, decisionStyle, planningStyle,
+        attachmentStyle: attachmentStyle || 'SECURE',
+        preferredPlans: preferredPlans || 'intimate_home',
+        musicMood: musicMood || 'pop_reggaeton',
+        stressedNeeds: stressedNeeds || 'just_listen',
+      };
+
+      const computed = mapQuizToPersonality(quizAnswers);
+
+      await prisma.personalityProfile.upsert({
+        where: { userId },
+        update: {
+          mbtiType: computed.mbtiType,
+          mbtiConfidence: computed.mbtiConfidence,
+          attachmentStyle: computed.attachmentStyle,
+          preferences: computed.preferences,
+        },
+        create: {
+          userId,
+          mbtiType: computed.mbtiType,
+          mbtiConfidence: computed.mbtiConfidence,
+          attachmentStyle: computed.attachmentStyle,
+          preferences: computed.preferences,
+        }
+      });
+
+      console.log(`[Profile] MBTI calculado: ${computed.mbtiType} para ${userId}`);
+    }
+
     res.status(200).json(profile);
+
   } catch (error: any) {
     console.error('CRITICAL ERROR saving profile:', error);
-    res.status(500).json({ 
-        error: 'Failed to save profile',
-        detail: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ error: 'Failed to save profile', detail: error.message });
   }
 };
 
 export const getProfile = async (req: Request, res: Response) => {
-  const { userId } = req.params;
-
+  const userId = req.params.userId || (req as any).user?.id;
   try {
-    const profile = await prisma.partnerProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    res.status(200).json(profile);
+    const [profile, personalityProfile] = await Promise.all([
+      prisma.partnerProfile.findUnique({ where: { userId } }),
+      prisma.personalityProfile.findUnique({ where: { userId } }),
+    ]);
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+    res.status(200).json({ ...profile, mbti: personalityProfile });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
+

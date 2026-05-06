@@ -1,123 +1,164 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../../constants/theme';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { CONFIG } from '../../constants/config';
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'ai' | 'user';
-}
+import { useAIChat } from '../../hooks/useAIChat';
+import { apiFetch } from '../../services/api';
+import { supabase } from '../../lib/supabase';
+import { useTheme } from '../../context/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', text: '¡Hola! Soy tu asistente táctico. ¿Qué está pasando hoy o qué necesitas saber sobre el estado de tu pareja?', sender: 'ai' },
-  ]);
+  const { mensajes, enviarMensaje, cargando } = useAIChat();
   const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [faseActual, setFaseActual] = useState('DESCONOCIDA');
+  const { theme } = useTheme();
+  const flatListRef = useRef<FlatList>(null);
 
-  const sendMessage = async () => {
-    if (!inputText.trim() || loading) return;
+  const renderFormattedText = (text: string, isAi: boolean) => {
+    const cleanText = text.replace(/(^|\n)\*\s/g, '$1• ');
+    const parts = cleanText.split(/(\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <Text key={index} style={[
+            styles.messageText, 
+            isAi ? { color: theme.colors.text } : { color: '#000' },
+            { fontFamily: theme.typography.boldFont }
+          ]}>
+            {part.slice(2, -2)}
+          </Text>
+        );
+      }
+      return (
+        <Text key={index} style={[
+          styles.messageText, 
+          isAi ? { color: theme.colors.textMuted } : { color: '#000' },
+          { fontFamily: theme.typography.bodyFont }
+        ]}>
+          {part}
+        </Text>
+      );
+    });
+  };
 
-    const userMsg: Message = { id: Date.now().toString(), text: inputText, sender: 'user' };
-    setMessages(prev => [...prev, userMsg]);
+  useEffect(() => {
+    const fetchPhase = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const res = await apiFetch(`/api/ai/recommendation/${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setFaseActual(data.cycle.phase);
+          }
+        }
+      } catch (e) {
+        console.error("Error cargando fase para chat:", e);
+      }
+    };
+    fetchPhase();
+  }, []);
+
+  const handleSend = async () => {
+    if (!inputText.trim() || cargando) return;
+    const text = inputText;
     setInputText('');
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${CONFIG.API_URL}/api/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: CONFIG.TEST_USER_ID,
-          message: inputText,
-          history: messages.map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }))
-        })
-      });
-
-      const data = await response.json();
-      const aiMsg: Message = { id: (Date.now() + 1).toString(), text: data.response, sender: 'ai' };
-      setMessages(prev => [...prev, aiMsg]);
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, { id: 'error', text: 'Error de conexión. Inténtalo de nuevo.', sender: 'ai' }]);
-    } finally {
-      setLoading(false);
-    }
+    await enviarMensaje(text, faseActual);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>MateCare AI</Text>
-        <View style={styles.onlineBadge} />
-      </View>
-
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
-        style={{ flex: 1 }}
-      >
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.messageList, { flexGrow: 1, justifyContent: 'flex-end' }]}
-          renderItem={({ item }) => (
-            <MotiView 
-              from={{ opacity: 0, scale: 0.9, translateX: item.sender === 'ai' ? -20 : 20 }}
-              animate={{ opacity: 1, scale: 1, translateX: 0 }}
-              style={[
-                styles.bubble,
-                item.sender === 'ai' ? styles.aiBubble : styles.userBubble
-              ]}
-            >
-              <Text style={[
-                styles.messageText,
-                item.sender === 'ai' ? styles.aiText : styles.userText
-              ]}>
-                {item.text}
-              </Text>
-            </MotiView>
-          )}
-        />
-
-        <View style={styles.inputContainer}>
-          <TextInput 
-            style={styles.input}
-            placeholder="Pregúntale algo a la IA..."
-            placeholderTextColor={COLORS.light.textMuted}
-            value={inputText}
-            onChangeText={setInputText}
-            editable={!loading}
-          />
-          <TouchableOpacity 
-            style={[styles.sendButton, loading && { opacity: 0.5 }]} 
-            onPress={sendMessage}
-            disabled={loading}
-          >
-            {loading ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={20} color="#fff" />}
-          </TouchableOpacity>
+    <LinearGradient 
+      colors={[theme?.colors?.background || '#044422', theme?.colors?.primary || '#044422']} 
+      style={styles.container}
+    >
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <StatusBar barStyle="light-content" />
+        <View style={[styles.header, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}>
+          <View>
+            <Text style={[styles.title, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>MateCare AI</Text>
+            <Text style={[styles.subtitle, { color: theme?.colors?.textMuted || '#8F8F8F', fontFamily: theme?.typography?.boldFont }]}>Fase: {faseActual}</Text>
+          </View>
+          <View style={[styles.onlineBadge, { borderColor: theme?.colors?.card || 'rgba(0,0,0,0.1)' }]} />
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          style={{ flex: 1 }}
+        >
+          <FlatList
+            ref={flatListRef}
+            data={mensajes}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messageList}
+            removeClippedSubviews={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            renderItem={({ item }) => (
+              <MotiView 
+                from={{ opacity: 0, scale: 0.9, translateX: item.emisor === 'ia' ? -20 : 20 }}
+                animate={{ opacity: 1, scale: 1, translateX: 0 }}
+                style={[
+                  styles.bubble,
+                  item.emisor === 'ia' 
+                    ? [styles.aiBubble, { backgroundColor: theme?.colors?.card || 'rgba(255,255,255,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }] 
+                    : [styles.userBubble, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }]
+                ]}
+              >
+                <Text>
+                  {renderFormattedText(item.text, item.emisor === 'ia')}
+                </Text>
+              </MotiView>
+            )}
+            ListEmptyComponent={() => (
+              <Text style={[styles.emptyText, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>Inicia la conversación táctica...</Text>
+            )}
+          />
+
+          <View style={[styles.inputContainer, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderTopColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}>
+            <TextInput 
+              style={[styles.input, { backgroundColor: theme?.colors?.background || '#044422', color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}
+              placeholder="Pregúntale algo a la IA..."
+              placeholderTextColor={theme?.colors?.textMuted || '#8F8F8F'}
+              value={inputText}
+              onChangeText={setInputText}
+              editable={!cargando}
+              blurOnSubmit={false}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
+            />
+            <TouchableOpacity 
+              style={[styles.sendButton, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }, cargando && { opacity: 0.5 }]} 
+              onPress={handleSend}
+              disabled={cargando}
+            >
+              {cargando ? <ActivityIndicator color="#000" size="small" /> : <Ionicons name="send" size={20} color="#000" />}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
+
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.light.bgPrimary },
-  header: { padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.light.divider },
-  title: { fontFamily: TYPOGRAPHY.fontFamily.bold, fontSize: 18, color: COLORS.light.greenDark, marginRight: 8 },
-  onlineBadge: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4CAF50' },
-  messageList: { padding: SPACING.lg },
+  container: { flex: 1 },
+  header: { padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 },
+  title: { fontSize: 18 },
+  subtitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  onlineBadge: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#4CAF50', borderWidth: 2 },
+  messageList: { padding: SPACING.lg, paddingBottom: 20 },
   bubble: { maxWidth: '85%', padding: SPACING.md, borderRadius: RADIUS.lg, marginBottom: SPACING.md },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: COLORS.light.bgCard, borderBottomLeftRadius: 0, borderWidth: 1, borderColor: COLORS.light.divider },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: COLORS.light.greenDark, borderBottomRightRadius: 0 },
-  messageText: { fontFamily: TYPOGRAPHY.fontFamily.regular, fontSize: 15, lineHeight: 22 },
-  aiText: { color: COLORS.light.textPrimary },
-  userText: { color: '#fff' },
-  inputContainer: { flexDirection: 'row', padding: SPACING.md, backgroundColor: '#fff', alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.light.divider },
-  input: { flex: 1, height: 45, backgroundColor: COLORS.light.bgPrimary, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, fontFamily: TYPOGRAPHY.fontFamily.regular, fontSize: 14, marginRight: SPACING.sm },
-  sendButton: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: COLORS.light.greenDark, justifyContent: 'center', alignItems: 'center' },
+  aiBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 0, borderWidth: 1 },
+  userBubble: { alignSelf: 'flex-end', borderBottomRightRadius: 0 },
+  messageText: { fontSize: 15, lineHeight: 22 },
+  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 14 },
+  inputContainer: { flexDirection: 'row', padding: SPACING.md, alignItems: 'center', borderTopWidth: 1 },
+  input: { flex: 1, height: 45, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, fontSize: 14, marginRight: SPACING.sm },
+  sendButton: { width: 45, height: 45, borderRadius: 22.5, justifyContent: 'center', alignItems: 'center' },
 });

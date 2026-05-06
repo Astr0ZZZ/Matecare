@@ -1,101 +1,84 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/theme';
+import { BlurView } from 'expo-blur';
+import { SPACING, RADIUS } from '../constants/theme';
 import { MotiView } from 'moti';
-import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 interface PhaseCardProps {
-  phase: 'MENSTRUAL' | 'FOLLICULAR' | 'OVULATION' | 'LUTEAL';
+  phase: string;
   dayOfCycle: number;
-  description?: string;
 }
 
-export default function PhaseCard({ phase, dayOfCycle, description }: PhaseCardProps) {
+export default function PhaseCard({ phase, dayOfCycle }: PhaseCardProps) {
   const { theme } = useTheme();
-
-  const getPhaseData = () => {
-    const phaseColor = theme.colors.phases[phase];
-    switch (phase) {
-      case 'MENSTRUAL': return { label: 'Menstrual', color: phaseColor };
-      case 'FOLLICULAR': return { label: 'Folicular', color: phaseColor };
-      case 'OVULATION': return { label: 'Ovulación', color: phaseColor };
-      case 'LUTEAL': return { label: 'Lútea', color: phaseColor };
-    }
-  };
-
-  const data = getPhaseData();
+  const safePhase = phase || 'Fase Desconocida';
 
   return (
     <MotiView 
-      from={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'timing', duration: 800 }}
-      style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }]}
+      from={{ opacity: 0, scale: 0.9 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      style={[styles.container, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
     >
-      <View style={styles.leftContent}>
-        <View style={[styles.iconWrapper, { backgroundColor: data.color + '15' }]}>
-          <Ionicons name={theme.icons.phaseIndicator as any} size={20} color={data.color} />
+      <BlurView intensity={theme.visuals.material.blurIntensity} tint="dark" style={styles.glass}>
+        <View style={styles.content}>
+          <View style={styles.left}>
+            <Text style={[styles.label, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>ESTADO OPERATIVO</Text>
+            <Text style={[styles.phase, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>{safePhase.toUpperCase()}</Text>
+            <View style={[styles.badge, { backgroundColor: theme.colors.glow }]}>
+              <Text style={[styles.badgeText, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>DÍA {dayOfCycle || 1} DEL CICLO</Text>
+            </View>
+          </View>
+          <View style={styles.right}>
+            <Ionicons name="shield-half" size={40} color={theme.colors.accent} />
+          </View>
         </View>
-        <View>
-          <Text style={[styles.phaseLabel, { color: theme.colors.textMuted }]}>
-            {theme.id === 'ALTAR' ? 'ESTADO DE LA CRUZADA' : 'FASE ACTUAL'}
-          </Text>
-          <Text style={[styles.phaseName, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>
-            {data.label.toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      <View style={[styles.dayBadge, { backgroundColor: data.color }]}>
-        <Text style={styles.dayText}>DÍA {dayOfCycle}</Text>
-      </View>
+      </BlurView>
     </MotiView>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
+    marginBottom: SPACING.xl,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  glass: {
     padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
+  },
+  content: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
   },
-  leftContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  left: {
+    flex: 1,
   },
-  iconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
+  label: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    marginBottom: 4,
   },
-  phaseLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
+  phase: {
+    fontSize: 26,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  badgeText: {
     fontSize: 10,
-    letterSpacing: 1,
     fontWeight: 'bold',
   },
-  phaseName: {
-    fontSize: 20,
-    marginTop: 2,
-  },
-  dayBadge: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.sm,
-  },
-  dayText: {
-    fontFamily: TYPOGRAPHY.fontFamily.bold,
-    fontSize: 12,
-    color: '#FFF',
-  },
+  right: {
+    marginLeft: 20,
+  }
 });
+

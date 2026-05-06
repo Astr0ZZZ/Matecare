@@ -1,13 +1,14 @@
 /**
- * MateCare Premium Theme Registry
+ * MateCare Premium Theme Registry - High Engineering Edition
+ * Basado en la Guía Técnica de Arquitectura e Ingeniería de Bienestar.
  */
 
-export type ThemeType = 'TACTICAL' | 'ALTAR' | 'LUNAR';
+export type ThemeType = 'NEVERLAND' | 'ETHEREAL' | 'DRAGON' | 'CYBER';
 
 export interface ThemeColors {
-  primary: string;    // Color principal (Obsidiana o Verde Táctico)
-  secondary: string;  // Color de acento (Oro o Fuego)
-  accent: string;     // Color de realce (Platino o Oro)
+  primary: string;    
+  secondary: string;  
+  accent: string;     
   background: string; 
   card: string;
   text: string;
@@ -27,117 +28,236 @@ export interface ThemeDefinition {
   id: ThemeType;
   name: string;
   colors: ThemeColors;
-  icons: any;
   typography: {
     titleFont: string;
     bodyFont: string;
+    boldFont: string;
   };
   visuals: {
-    bgPattern?: 'dots' | 'marble' | 'parchment';
+    hudName: string;
+    emojiSet: {
+      mission: string;
+      rec: string;
+      status: string;
+      phase: string;
+    };
+    tabIcons: {
+      centro: string;
+      chat: string;
+      calendar: string;
+      profile: string;
+    };
+    material: {
+      blurIntensity: number;
+      glowSpread: number;
+      animationStyle: 'organic' | 'aura' | 'turbulence' | 'flicker';
+      progressStyle: 'smooth' | 'segmented';
+    };
     hasGlowEffect: boolean;
-    compassType: 'radar' | 'fire' | 'clock';
-    goldGradient?: string[]; // Para efectos Skia
+    compassType: 'radar' | 'fire' | 'clock' | 'cyber';
+    goldGradient: readonly [string, string, ...string[]]; 
   }
 }
 
 export const THEMES: Record<ThemeType, ThemeDefinition> = {
-  TACTICAL: {
-    id: 'TACTICAL',
-    name: 'Operación Táctica',
+  NEVERLAND: {
+    id: 'NEVERLAND',
+    name: 'Bosque Orgánico',
     colors: {
-      primary: '#2C2C2C',      // Obsidiana
-      secondary: '#E5E4E2',    // Platino
-      accent: '#D4AF37',       // Oro
-      background: '#F5F5F5',
-      card: '#FFFFFF',
-      text: '#2C2C2C',
-      textMuted: '#666666',
-      glow: 'rgba(229, 228, 226, 0.2)',
-      border: '#E5E4E2',
+      primary: '#044422',
+      secondary: '#B8860B',
+      accent: '#CFAA3C',
+      background: '#044422',
+      card: 'rgba(255, 255, 255, 0.08)',
+      text: '#FFFFFF',
+      textMuted: '#8F8F8F',
+      glow: 'rgba(207, 170, 60, 0.3)',
+      border: 'rgba(255, 255, 255, 0.15)',
       phases: {
-        MENSTRUAL: '#2C2C2C',
-        FOLLICULAR: '#4A4A4A',
-        OVULATION: '#D4AF37',
-        LUTEAL: '#666666'
+        MENSTRUAL: '#FF4444',
+        FOLLICULAR: '#CFAA3C',
+        OVULATION: '#4CAF50',
+        LUTEAL: '#B8860B'
       }
     },
-    icons: {
-      mission: 'flash-outline',
-      recommendation: 'bulb-outline',
-      phaseIndicator: 'shield-checkmark-outline'
+    typography: { 
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
-    typography: { titleFont: 'OpenSans-Bold', bodyFont: 'OpenSans-Regular' },
     visuals: {
-      bgPattern: 'dots',
-      hasGlowEffect: false,
+      hudName: 'CYCLE COMPASS',
+      emojiSet: {
+        mission: '🌿',
+        rec: '✨',
+        status: '🧘',
+        phase: '🧪'
+      },
+      tabIcons: {
+        centro: 'leaf',
+        chat: 'chatbubble-ellipses',
+        calendar: 'calendar',
+        profile: 'person'
+      },
+      material: {
+        blurIntensity: 20,
+        glowSpread: 10,
+        animationStyle: 'organic',
+        progressStyle: 'smooth'
+      },
+      hasGlowEffect: true,
       compassType: 'radar',
-      goldGradient: ['#BF953F', '#FCF6BA', '#B38728', '#FBF5B7', '#AA771C']
+      goldGradient: ['#8f6B29', '#FDE08D', '#DF9F28'] as const
     }
   },
-  ALTAR: {
-    id: 'ALTAR',
-    name: 'Altar Místico',
+  ETHEREAL: {
+    id: 'ETHEREAL',
+    name: 'Misterio Etéreo',
     colors: {
-      primary: '#1A1A2E',      // Azul Medianoche
-      secondary: '#FF4D00',    // Fuego Puro
-      accent: '#FFD700',       // Oro Brillante
-      background: '#0F0F1A',   // Fondo Profundo
-      card: '#16213E',         // Cristal Esmerilado (Base)
+      primary: '#572D6A',
+      secondary: '#E8CBA0',
+      accent: '#D698CA',
+      background: '#20303D',
+      card: 'rgba(87, 45, 106, 0.4)',
       text: '#FFFFFF',
       textMuted: '#A0A0A0',
-      glow: 'rgba(255, 77, 0, 0.4)',
-      border: '#1F4068',
+      glow: 'rgba(214, 152, 202, 0.5)', 
+      border: 'rgba(232, 203, 160, 0.2)',
       phases: {
         MENSTRUAL: '#E94560',
-        FOLLICULAR: '#0F3460',
-        OVULATION: '#FFD700',
+        FOLLICULAR: '#D698CA',
+        OVULATION: '#E8CBA0',
         LUTEAL: '#533483'
       }
     },
-    icons: {
-      mission: 'document-text-outline',
-      recommendation: 'flame',
-      phaseIndicator: 'flame'
+    typography: { 
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
-    typography: { titleFont: 'OpenSans-Bold', bodyFont: 'OpenSans-Regular' },
     visuals: {
-      bgPattern: 'parchment',
-      hasGlowEffect: true,
-      compassType: 'fire',
-      goldGradient: ['#E6B800', '#FFF3B0', '#B8860B', '#FAD02E']
-    }
-  },
-  LUNAR: {
-    id: 'LUNAR',
-    name: 'Reloj Imperial',
-    colors: {
-      primary: '#1A3626',      // Verde Imperial
-      secondary: '#D4AF37',    // Oro Real
-      accent: '#E5E4E2',       // Platino
-      background: '#FDFBF7',   // Mármol Crema
-      card: '#FFFFFF',
-      text: '#1A3626',
-      textMuted: '#5C7064',
-      glow: 'rgba(212, 175, 55, 0.2)',
-      border: '#E8E2D2',
-      phases: {
-        MENSTRUAL: '#1A3626',
-        FOLLICULAR: '#8B9D77',
-        OVULATION: '#D4AF37',
-        LUTEAL: '#5C7064'
-      }
-    },
-    icons: {
-      mission: 'shield-half-outline',
-      recommendation: 'book-outline',
-      phaseIndicator: 'moon-outline'
-    },
-    typography: { titleFont: 'OpenSans-Bold', bodyFont: 'OpenSans-Regular' },
-    visuals: {
-      bgPattern: 'marble',
+      hudName: 'ORÁCULO DE CICLO',
+      emojiSet: {
+        mission: '🔮',
+        rec: '🪄',
+        status: '🌙',
+        phase: '💎'
+      },
+      tabIcons: {
+        centro: 'planet',
+        chat: 'sparkles',
+        calendar: 'moon',
+        profile: 'eye'
+      },
+      material: {
+        blurIntensity: 35,
+        glowSpread: 25,
+        animationStyle: 'aura',
+        progressStyle: 'smooth'
+      },
       hasGlowEffect: true,
       compassType: 'clock',
-      goldGradient: ['#BF953F', '#FCF6BA', '#B38728', '#FBF5B7', '#AA771C']
+      goldGradient: ['#E8CBA0', '#FFDAB9', '#D2B48C'] as const
+    }
+  },
+  DRAGON: {
+    id: 'DRAGON',
+    name: 'Ruleta de Fuego',
+    colors: {
+      primary: '#B62203',
+      secondary: '#DA9202',
+      accent: '#FF7500',
+      background: '#2B2B2A',
+      card: 'rgba(43, 43, 42, 0.8)',
+      text: '#FFFFFF',
+      textMuted: '#888888',
+      glow: 'rgba(182, 34, 3, 0.6)', 
+      border: 'rgba(218, 146, 2, 0.3)',
+      phases: {
+        MENSTRUAL: '#B62203',
+        FOLLICULAR: '#FF7500',
+        OVULATION: '#DA9202',
+        LUTEAL: '#4A4A4A'
+      }
+    },
+    typography: { 
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
+    },
+    visuals: {
+      hudName: 'INDICADOR DE BATALLA',
+      emojiSet: {
+        mission: '🐉',
+        rec: '🔥',
+        status: '⚔️',
+        phase: '🏰'
+      },
+      tabIcons: {
+        centro: 'flame',
+        chat: 'shield',
+        calendar: 'skull',
+        profile: 'trophy'
+      },
+      material: {
+        blurIntensity: 10,
+        glowSpread: 15,
+        animationStyle: 'turbulence',
+        progressStyle: 'smooth'
+      },
+      hasGlowEffect: true,
+      compassType: 'fire',
+      goldGradient: ['#B62203', '#FF7500', '#DA9202'] as const
+    }
+  },
+  CYBER: {
+    id: 'CYBER',
+    name: 'Hacker / Jarvis',
+    colors: {
+      primary: '#020021',
+      secondary: '#00AEFF',
+      accent: '#FC0FF5',
+      background: '#020021',
+      card: 'rgba(0, 174, 255, 0.05)',
+      text: '#FFFFFF',
+      textMuted: '#00AEFF',
+      glow: 'rgba(0, 174, 255, 0.4)', 
+      border: 'rgba(0, 174, 255, 0.6)',
+      phases: {
+        MENSTRUAL: '#FC0FF5',
+        FOLLICULAR: '#00AEFF',
+        OVULATION: '#39FF14',
+        LUTEAL: '#1A1A40'
+      }
+    },
+    typography: { 
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
+    },
+    visuals: {
+      hudName: 'HUD DE ESTADO',
+      emojiSet: {
+        mission: '💻',
+        rec: '🤖',
+        status: '⚡',
+        phase: '💀'
+      },
+      tabIcons: {
+        centro: 'grid',
+        chat: 'terminal',
+        calendar: 'pulse',
+        profile: 'hardware-chip'
+      },
+      material: {
+        blurIntensity: 5,
+        glowSpread: 8,
+        animationStyle: 'flicker',
+        progressStyle: 'segmented'
+      },
+      hasGlowEffect: false,
+      compassType: 'cyber',
+      goldGradient: ['#00AEFF', '#00FBFF', '#0044FF'] as const
     }
   }
 };
