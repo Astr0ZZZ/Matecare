@@ -29,8 +29,12 @@ export async function apiFetch(path: string, options?: RequestInit) {
     });
     clearTimeout(timeoutId);
     return response;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.log('[API] Petición cancelada o timeout:', fullUrl);
+      throw error;
+    }
     console.error(`Error en apiFetch (${path}):`, error);
     throw error;
   }

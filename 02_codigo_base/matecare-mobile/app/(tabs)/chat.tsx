@@ -18,6 +18,7 @@ export default function Chat() {
   const flatListRef = useRef<FlatList>(null);
 
   const renderFormattedText = (text: string, isAi: boolean) => {
+    if (!text) return null;
     const cleanText = text.replace(/(^|\n)\*\s/g, '$1• ');
     const parts = cleanText.split(/(\*\*.*?\*\*)/g);
     
@@ -110,7 +111,7 @@ export default function Chat() {
                 ]}
               >
                 <Text>
-                  {renderFormattedText(item.text, item.emisor === 'ia')}
+                  {item.text ? renderFormattedText(item.text, item.emisor === 'ia') : null}
                 </Text>
               </MotiView>
             )}
