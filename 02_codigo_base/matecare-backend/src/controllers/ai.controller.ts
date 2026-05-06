@@ -168,7 +168,7 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
 
     // Guardar en Redis (Expira en 23 horas para asegurar refresco diario)
     try {
-      await redis.setex(dailyCacheKey, 82800, aiResponse);
+      await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
     } catch (redisError) {
       console.warn('[Redis] Error saving cache:', redisError);
     }
