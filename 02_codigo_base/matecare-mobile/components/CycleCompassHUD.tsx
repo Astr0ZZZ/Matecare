@@ -86,7 +86,6 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
     opacity: (aura.value - 1) * 2 + 0.3,
   }));
 
-  // Definir todos los animatedProps al nivel superior para cumplir las Reglas de Hooks
   const radarAnimatedProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - progress.value),
     opacity: flicker.value,
@@ -102,6 +101,10 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
       opacity: flicker.value
     };
   });
+
+  const rotationAnimatedProps = useAnimatedProps(() => ({
+    rotation: progress.value * 360,
+  }));
 
   const renderCompass = () => {
     switch (theme.visuals.compassType) {
@@ -151,7 +154,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
               animatedProps={radarAnimatedProps}
               transform={`rotate(-90 ${centerX} ${centerY})`}
             />
-            <AnimatedG originX={centerX} originY={centerY} rotation={progress.value * 360}>
+            <AnimatedG originX={centerX} originY={centerY} animatedProps={rotationAnimatedProps}>
               <Circle cx={centerX + radio} cy={centerY} r={10} fill={phaseColor} />
               <Circle cx={centerX + radio} cy={centerY} r={15} stroke={phaseColor} strokeWidth={1} opacity={0.5} />
             </AnimatedG>
@@ -208,7 +211,7 @@ export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLab
               strokeLinecap="round"
               transform={`rotate(-90 ${centerX} ${centerY})`}
             />
-            <AnimatedG originX={centerX} originY={centerY} rotation={progress.value * 360}>
+            <AnimatedG originX={centerX} originY={centerY} animatedProps={rotationAnimatedProps}>
                <Circle cx={centerX + radio} cy={centerY} r={8} fill={phaseColor} />
             </AnimatedG>
           </Svg>

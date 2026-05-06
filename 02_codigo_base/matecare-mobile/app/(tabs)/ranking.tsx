@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../services/api';
 import { SPACING, RADIUS } from '../../constants/theme';
@@ -20,8 +21,16 @@ export default function RankingScreen() {
         const data = await res.json();
         setRanking(data);
       }
-    } catch (e) {
-      console.error("Error fetching ranking:", e);
+    } catch (error: any) {
+      if (
+        error.name === 'AbortError' || 
+        error.message === 'Aborted' || 
+        String(error).includes('Aborted')
+      ) {
+        console.log('[Ranking] Petición cancelada (Ignorado)');
+        return;
+      }
+      console.error("Error fetching ranking:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
