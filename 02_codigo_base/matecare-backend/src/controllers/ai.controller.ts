@@ -69,10 +69,10 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
     const trimmedHistory = Array.isArray(history)
       ? history
           .filter(
-            (h): h is { role: string; content: string } =>
+            (h): h is { role: 'user' | 'assistant'; content: string } =>
               h !== null &&
               typeof h === 'object' &&
-              typeof h.role === 'string' &&
+              (h.role === 'user' || h.role === 'assistant') &&
               typeof h.content === 'string'
           )
           .slice(-8)
