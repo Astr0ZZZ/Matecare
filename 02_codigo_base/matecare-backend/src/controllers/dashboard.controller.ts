@@ -55,9 +55,10 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
     // 2. Missions (Try Cache -> DB)
-    const todayStr = new Date().toISOString().split('T')[0];
-    const missionCacheKey = `missions:${userId}:${todayStr}`;
-    const dailyCacheKey = `daily:${userId}:${todayStr}`;
+    const now = new Date();
+    const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const missionCacheKey = `missions:${userId}:${localDate}`;
+    const dailyCacheKey = `daily:${userId}:${localDate}`;
 
     let missions: any[] = [];
     const cachedMissions = isRedisConnected ? await redis.get(missionCacheKey) : null;
@@ -65,13 +66,24 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     if (cachedMissions) {
       missions = JSON.parse(cachedMissions);
     } else {
-      const now = new Date();
-      const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      missions = await prisma.mission.findMany({ where: { userId, createdAt: { gte: todayStart } } });
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      missions = await prisma.mission.findMany({ 
+        where: { userId, createdAt: { gte: todayStart } },
+        orderBy: { createdAt: 'desc' }
+      });
     }
 
-    // 3. Recommendation (Try Cache)
+    // 3. Recommendation (Try Cache -> DB -> Memory)
     let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
+    
+    if (!recommendation) {
+      // Intentamos buscar en la DB de insights usando una clave especial del día
+      const dbRec = await prisma.personalityInsight.findUnique({
+        where: { cacheKey: dailyCacheKey }
+      });
+      if (dbRec) recommendation = dbRec.insight;
+    }
 
     // 4. AI Generation (with a smart 5s wait window)
     const needsMissions = missions.length === 0;
@@ -148,6 +160,13 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
             recommendation = generatedRec;
             memoryCache[dailyCacheKey] = recommendation;
             if (isRedisConnected) await redis.set(dailyCacheKey, recommendation, { EX: 82800 });
+            
+            // Guardar en la DB para persistencia total (reutilizando tabla de insights)
+            await prisma.personalityInsight.upsert({
+              where: { cacheKey: dailyCacheKey },
+              update: { insight: recommendation, expiresAt: new Date(Date.now() + 86400000) },
+              create: { cacheKey: dailyCacheKey, insight: recommendation, expiresAt: new Date(Date.now() + 86400000) }
+            }).catch(e => console.error('[DASHBOARD] Error persistenting daily rec:', e));
           }
         } catch (innerError) {
           console.error('[DASHBOARD] AI background task error:', innerError);

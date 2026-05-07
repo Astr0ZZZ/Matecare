@@ -165,30 +165,13 @@ export default function Dashboard() {
     return "MAESTRO DE LA MATRIZ";
   };
 
-  if ((loading || initialCheck) && !missions.length) {
+  if (!summary && loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme?.colors?.background || '#044422' }]}>
         <ActivityIndicator size="large" color={theme?.colors?.accent || '#CFAA3C'} />
         <Text style={{ marginTop: 15, color: '#CFAA3C', fontFamily: theme?.typography?.boldFont, letterSpacing: 1 }}>
           SINCRONIZANDO MATRIZ TÁCTICA...
         </Text>
-      </View>
-    );
-  }
-
-  if (!loading && !missions.length && !initialCheck) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: '#000' }]}>
-        <Ionicons name="alert-circle" size={50} color="#FF4444" />
-        <Text style={{ color: '#FFF', marginTop: 20, textAlign: 'center', paddingHorizontal: 40 }}>
-          No se pudieron recuperar los datos. Verifica tu conexión.
-        </Text>
-        <TouchableOpacity 
-          style={{ marginTop: 20, padding: 15, backgroundColor: theme?.colors?.accent, borderRadius: 10 }}
-          onPress={fetchData}
-        >
-          <Text style={{ color: '#000', fontWeight: 'bold' }}>REINTENTAR</Text>
-        </TouchableOpacity>
       </View>
     );
   }
