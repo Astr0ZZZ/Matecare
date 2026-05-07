@@ -4,7 +4,7 @@ import { calculateCycleState } from '../services/cycleEngine.service';
 import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { getInsight } from '../services/insightCache.service';
 import { buildMessages } from '../services/promptEngine.service';
-import { routeToAI, detectTier } from '../services/aiRouter.service';
+import { routeToAI, detectTier, determineTier } from '../services/aiRouter.service';
 import { generarMisionesTactica } from '../services/aiClient.service';
 import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
 import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
@@ -73,78 +73,109 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     // 3. Recommendation (Try Cache)
     let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
 
-    // 4. AI Generation (if needed)
+    // 4. AI Generation (with a smart 5s wait window)
     const needsMissions = missions.length === 0;
     const needsRec = !recommendation;
 
     if (needsMissions || needsRec) {
-      console.log(`[DASHBOARD] Generating AI content... Missions: ${needsMissions}, Rec: ${needsRec}`);
+      console.log(`[DASHBOARD] Content needed. Starting AI sync...`);
       
-      const aiResult = await Promise.race([
-        Promise.all([
-          needsMissions ? generarMisionesTactica({ phase: cycle.phase }) : Promise.resolve(null),
-          needsRec ? (async () => {
-            try {
+      const aiPromise = (async () => {
+        try {
+          const [generatedMissions, generatedRec] = await Promise.all([
+            needsMissions ? generarMisionesTactica({ phase: cycle.phase }) : Promise.resolve(null),
+            needsRec ? (async () => {
               if (personalityProfile?.mbtiType) {
                 return await getInsight({
                   mbtiType: personalityProfile.mbtiType as MBTIType,
                   phase: cycle.phase as CyclePhase,
                   context: 'plan_romantico',
-                  affectionStyle: profile.affectionStyle as AffectionStyle,
-                  conflictStyle: profile.conflictStyle as ConflictStyle,
-                  attachmentStyle: (personalityProfile.attachmentStyle as AttachmentStyle) ?? 'SECURE',
-                  preferences: personalityProfile.preferences as any,
+                  affectionStyle: (profile.affectionStyle as AffectionStyle) || 'QUALITY',
+                  conflictStyle: (profile.conflictStyle as ConflictStyle) || 'CALM',
+                  attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
+                  preferences: (personalityProfile?.preferences as any) || {},
                 });
               } else {
+                const userTier = await determineTier(userId);
+                
                 const messages = buildMessages({
                   phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
                   daysUntilNextPhase: cycle.daysUntilNextPhase,
-                  personalityType: profile.personalityType, socialLevel: profile.socialLevel,
-                  privacyLevel: profile.privacyLevel, conflictStyle: profile.conflictStyle,
-                  affectionStyle: profile.affectionStyle,
+                  personalityType: profile.personalityType || 'AMBIVERT', 
+                  socialLevel: profile.socialLevel || 'MEDIUM',
+                  privacyLevel: profile.privacyLevel || 'MEDIUM', 
+                  conflictStyle: profile.conflictStyle || 'CALM',
+                  affectionStyle: profile.affectionStyle || 'QUALITY',
+                  mbtiType: personalityProfile?.mbtiType as MBTIType,
+                  attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
+                  preferences: (personalityProfile?.preferences as any) || {},
+                  userTier
                 });
-                return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), detectTier());
+
+                if (messages.length > 0) {
+                  return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
+                }
+                return "La matriz está sincronizando tus datos. Vuelve en un momento.";
               }
-            } catch (e) {
-              console.error('[DASHBOARD] Inner AI error:', e);
-              return null;
+            })() : Promise.resolve(null)
+          ]);
+
+          if (Array.isArray(generatedMissions) && generatedMissions.length > 0) {
+            try {
+              const savedMissions = await Promise.all(generatedMissions.slice(0, 3).map(async (m: any) => {
+                return prisma.mission.create({
+                  data: {
+                    userId, 
+                    title: String(m.title || 'Misión Táctica').substring(0, 100), 
+                    description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
+                    category: (m.category || 'ROMANTIC').toUpperCase(), 
+                    isCompleted: false,
+                    progress: 0, 
+                    phaseContext: (cycle.phase as string).toUpperCase() as any
+                  }
+                });
+              }));
+              missions = savedMissions;
+              if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(missions), { EX: 82800 });
+            } catch (dbErr) {
+              console.error('[DASHBOARD] Error saving AI missions to DB:', dbErr);
+              // Si falla la DB, usamos los generados en memoria para no fallar la respuesta
+              missions = generatedMissions.slice(0, 3);
             }
-          })() : Promise.resolve(null)
-        ]),
-        new Promise<[any, any]>(resolve => setTimeout(() => resolve([null, null]), 20000))
+          }
+
+          if (generatedRec) {
+            recommendation = generatedRec;
+            memoryCache[dailyCacheKey] = recommendation;
+            if (isRedisConnected) await redis.set(dailyCacheKey, recommendation, { EX: 82800 });
+          }
+        } catch (innerError) {
+          console.error('[DASHBOARD] AI background task error:', innerError);
+        }
+      })();
+
+      await Promise.race([
+        aiPromise,
+        new Promise(resolve => setTimeout(resolve, 4000)) // 4s timeout for better UX
       ]);
-
-      const [generatedMissions, generatedRec] = aiResult;
-
-      if (generatedMissions) {
-        missions = await Promise.all(generatedMissions.slice(0, 3).map(async (m: any) => {
-          return prisma.mission.create({
-            data: {
-              userId, title: m.title, description: m.description,
-              category: m.category || 'ROMANTIC', isCompleted: false,
-              progress: 0, phaseContext: cycle.phase as any
-            }
-          });
-        }));
-        if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(missions), { EX: 82800 });
-      }
-
-      if (generatedRec) {
-        recommendation = generatedRec;
-        memoryCache[dailyCacheKey] = recommendation;
-        if (isRedisConnected) await redis.set(dailyCacheKey, recommendation, { EX: 82800 });
-      }
     }
 
     const duration = Date.now() - start;
-    console.log(`[DASHBOARD] Summary for ${userId} ready in ${duration}ms. Rec Length: ${recommendation?.length || 0}`);
+    console.log(`[DASHBOARD] Summary for ${userId} ready in ${duration}ms.`);
 
     return res.json({
-      profile: { ...profile, points: user?.points || 0, mbti: personalityProfile },
-      cycle,
-      missions: missions.length > 0 ? missions : FALLBACK_MISSIONS[cycle.phase.toUpperCase()] || [],
+      profile: { 
+        ...profile, 
+        points: user?.points || 0, 
+        mbti: personalityProfile || null 
+      },
+      cycle: {
+        ...cycle,
+        phase: cycle.phase.toUpperCase() // Aseguramos mayúsculas para consistencia
+      },
+      missions: missions.length > 0 ? missions : FALLBACK_MISSIONS[cycle.phase.toUpperCase()] || FALLBACK_MISSIONS.MENSTRUAL,
       recommendation: {
-        text: recommendation || "Sigue tu intuición. Hoy es un día para la conexión tranquila y la escucha activa.",
+        text: String(recommendation || "Sincronizando tácticas... Refresca en unos segundos para tu estrategia personalizada."),
         fromCache: !!recommendation
       }
     });

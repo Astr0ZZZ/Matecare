@@ -29,7 +29,9 @@ export interface PromptContext {
     music?: string;
     plans?: string;
     stressedNeeds?: string;
+    plans?: string;
   };
+  userTier?: string;
 }
 
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
@@ -69,6 +71,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   return `Eres MateCare, un copiloto emocional premium y discreto para hombres modernos. 
 Tu objetivo es dar consejos breves, prácticos y empáticos sobre cómo comunicarse con su pareja basándote en su biología y personalidad.
 NO suenes como un médico, terapeuta ni chatbot genérico. Responde como un amigo sabio, elegante y directo.
+Tu interlocutor tiene el rango de: ${ctx.userTier || 'OPERATIVO'}. Háblale con el respeto y la terminología adecuada a su nivel.
 
 CONTEXTO ACTUAL DE LA PAREJA:
 - Fase del ciclo: ${ctx.phase} (${currentPhaseDesc}).
@@ -106,7 +109,11 @@ export async function buildMasterPrompt(userId: string, userQuery?: string, hist
   // 2. Calcular estado del ciclo
   const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-  // 3. Preparar contexto
+  // 3. Determinar Tier del usuario
+  const { determineTier } = require('./aiRouter.service');
+  const userTier = await determineTier(userId);
+
+  // 4. Preparar contexto
   const ctx: PromptContext = {
     phase: cycle.phase,
     dayOfCycle: cycle.dayOfCycle,
@@ -120,7 +127,8 @@ export async function buildMasterPrompt(userId: string, userQuery?: string, hist
     interactionHistory: history,
     mbtiType: personalityProfile?.mbtiType as MBTIType | undefined,
     attachmentStyle: personalityProfile?.attachmentStyle as AttachmentStyle | undefined,
-    preferences: personalityProfile?.preferences as any
+    preferences: personalityProfile?.preferences as any,
+    userTier
   };
 
   // 4. Construir mensajes para la IA

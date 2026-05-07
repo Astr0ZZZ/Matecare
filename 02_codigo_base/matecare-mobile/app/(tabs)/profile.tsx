@@ -13,11 +13,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function Profile() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const [userId, setUserId] = useState('ALPHA_1');
+  const [userName, setUserName] = useState('OPERATIVO');
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
+        const name = data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'OPERATIVO';
+        setUserName(name.toUpperCase());
         setUserId(data.user.id.substring(0, 8).toUpperCase());
       }
     });
@@ -92,8 +95,8 @@ export default function Profile() {
             >
               <Ionicons name={theme?.visuals?.tabIcons?.profile as any || 'person'} size={40} color={theme?.colors?.accent || '#CFAA3C'} />
             </MotiView>
-            <Text style={[styles.title, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont }]}>CENTRO DE MANDO</Text>
-            <Text style={[styles.subtitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>ID: OPERATIVO_{userId}</Text>
+            <Text style={[styles.title, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont }]}>{userName}</Text>
+            <Text style={[styles.subtitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>ID: {userId}</Text>
           </View>
 
           <View style={styles.section}>

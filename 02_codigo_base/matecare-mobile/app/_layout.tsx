@@ -16,20 +16,24 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // 1. Escuchar cambios de autenticación en tiempo real
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-      if (!currentSession) {
-        // Solo redirigir si no estamos ya en auth
+    const { data: listener } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log(`[AUTH_GUARD] Event: ${event}, Session: ${!!currentSession}`);
+      
+      if (currentSession) {
+        setSession(currentSession);
+      } else {
+        setSession(null);
         if (segments[0] !== '(auth)') {
+          console.log('[AUTH_GUARD] No session, redirecting to login');
           router.replace('/(auth)/login');
         }
         setChecked(true);
       }
     });
 
-    // 2. Verificación inicial de sesión
     const initialize = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession();
+      console.log(`[AUTH_GUARD] Initial Session: ${!!initialSession}`);
       setSession(initialSession);
       if (!initialSession) {
         if (segments[0] !== '(auth)') {
@@ -48,38 +52,48 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!session) return;
 
     const checkProfile = async () => {
+      if (!session?.user?.id) return;
+      console.log(`[AUTH_GUARD] Checking profile for: ${session.user.id}`);
+      
       try {
         const profile = await apiFetch(`/profile/${session.user.id}`);
         const inOnboarding = segments[0] === '(onboarding)';
         const inTabs = segments[0] === '(tabs)';
 
         if (profile && !profile.error) {
-          // Si tiene perfil, mandamos a tabs (si no está ya ahí)
-          if (!inTabs) {
-            router.replace('/(tabs)');
-          }
+          console.log('[AUTH_GUARD] Profile found');
+          if (!inTabs) router.replace('/(tabs)');
         } else {
-          // Si no tiene perfil, mandamos a onboarding
-          if (!inOnboarding) {
-            router.replace('/(onboarding)/cycle-setup');
-          }
+          console.log('[AUTH_GUARD] No profile found');
+          if (!inOnboarding) router.replace('/(onboarding)/cycle-setup');
         }
       } catch (error) {
-        // En caso de 404 o error de red, asumimos que falta perfil
-        if (segments[0] !== '(onboarding)') {
-          router.replace('/(onboarding)/cycle-setup');
-        }
+        console.error('[AUTH_GUARD] Profile check error:', error);
       } finally {
         setChecked(true);
       }
     };
 
+    // ESTRATEGIA OPTIMISTA: Si hay sesión, dejamos pasar y validamos en segundo plano
+    setChecked(true);
     checkProfile();
-  }, [session, segments[0]]); // Re-validar si cambia la sesión o el grupo de rutas
+  }, [session?.id]); 
 
-  if (!checked) return null;
+  if (!checked) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#044422', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#CFAA3C" />
+        <Text style={{ marginTop: 20, color: '#CFAA3C', fontFamily: 'OpenSans-Bold', letterSpacing: 2 }}>
+          SINCRONIZANDO MATRIZ...
+        </Text>
+      </View>
+    );
+  }
+  
   return <>{children}</>;
 }
+
+import { View, ActivityIndicator, Text } from 'react-native';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

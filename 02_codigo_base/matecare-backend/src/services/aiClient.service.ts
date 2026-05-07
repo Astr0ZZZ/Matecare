@@ -10,8 +10,8 @@ const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 const MODEL_FALLBACK_CHAIN = [
-  "gpt-5-nano",
-  "gpt-4.1-mini"
+  "gpt-4o-mini", // Cambiado de 4.1-mini a o-mini (nombre real 2026)
+  "gpt-4o"
 ];
 
 async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {

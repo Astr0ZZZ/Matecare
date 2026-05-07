@@ -17,7 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function Dashboard() {
   const router = useRouter();
   const { theme, isLoaded: themeLoaded } = useTheme();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialCheck, setInitialCheck] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cycleData, setCycleData] = useState<any>(null);
   const [missions, setMissions] = useState<any[]>([]);
@@ -29,12 +30,14 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/(auth)/login');
+      const currentUserId = user?.id;
+      if (!currentUserId) {
+        console.warn('[DASHBOARD] No se encontró ID de usuario al cargar.');
+        setLoading(false);
         return;
       }
-
-      const currentUserId = user.id;
+      
+      setLoading(true);
       setUserId(currentUserId);
       
       // Cargamos el Resumen Unificado del Dashboard (Sustituye 4 llamadas por 1)
@@ -56,6 +59,14 @@ export default function Dashboard() {
         
         if (summary.recommendation) {
           setDailyRec(summary.recommendation.text || '');
+          
+          // Re-intento silencioso si la IA aún estaba procesando
+          if (!summary.recommendation.fromCache && summary.recommendation.text?.includes('Sincronizando')) {
+            console.log('[Dashboard] IA en proceso. Programando re-intento táctico...');
+            setTimeout(() => {
+              fetchData();
+            }, 6000); // Esperamos 6s para dar tiempo a la IA
+          }
         }
 
       } catch (error: any) {
@@ -82,9 +93,32 @@ export default function Dashboard() {
     }
   }, []); // Desacoplado de router para evitar bucles infinitos
 
+  // 1. Escuchar la sesión de Supabase
+  const [session, setSession] = useState<any>(null);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 2. Ejecutar carga cuando el ID de usuario esté disponible
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchData();
+      setInitialCheck(false);
+    } else {
+      // Si pasan 3 segundos y no hay sesión, dejamos de mostrar el spinner inicial
+      const timer = setTimeout(() => setInitialCheck(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [session?.user?.id, fetchData]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -131,11 +165,30 @@ export default function Dashboard() {
     return "MAESTRO DE LA MATRIZ";
   };
 
-  if (loading || !themeLoaded) {
+  if ((loading || initialCheck) && !missions.length) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme?.colors?.background || '#044422' }]}>
         <ActivityIndicator size="large" color={theme?.colors?.accent || '#CFAA3C'} />
-        <Text style={{ marginTop: 10, color: theme?.colors?.textMuted || '#8F8F8F' }}>Sincronizando con la matriz...</Text>
+        <Text style={{ marginTop: 15, color: '#CFAA3C', fontFamily: theme?.typography?.boldFont, letterSpacing: 1 }}>
+          SINCRONIZANDO MATRIZ TÁCTICA...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!loading && !missions.length && !initialCheck) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: '#000' }]}>
+        <Ionicons name="alert-circle" size={50} color="#FF4444" />
+        <Text style={{ color: '#FFF', marginTop: 20, textAlign: 'center', paddingHorizontal: 40 }}>
+          No se pudieron recuperar los datos. Verifica tu conexión.
+        </Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, padding: 15, backgroundColor: theme?.colors?.accent, borderRadius: 10 }}
+          onPress={fetchData}
+        >
+          <Text style={{ color: '#000', fontWeight: 'bold' }}>REINTENTAR</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -210,7 +263,7 @@ export default function Dashboard() {
               {missions.length > 0 ? (
                 missions.map((mission, index) => (
                   <MissionCard
-                    key={mission.id}
+                    key={`mission-${mission.id || index}`}
                     id={mission.id}
                     userId={userId || ''}
                     title={mission.title}

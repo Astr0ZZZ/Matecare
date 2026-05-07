@@ -2,6 +2,7 @@
   "expo": {
     "name": "MateCare",
     "slug": "matecare-mobile",
+    "scheme": "matecare",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

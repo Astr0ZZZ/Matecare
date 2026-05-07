@@ -26,7 +26,7 @@ export async function apiFetch(path: string, options?: RequestInit) {
   console.log(`[API_FETCH] Calling: ${fullUrl}`);
   
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout para IA 2026
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout para respuesta rápida
 
   try {
     const response = await fetch(fullUrl, {
