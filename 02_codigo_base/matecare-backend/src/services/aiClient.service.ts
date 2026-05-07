@@ -10,8 +10,8 @@ const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 const MODEL_FALLBACK_CHAIN = [
-  "gpt-4o-mini", // Cambiado de 4.1-mini a o-mini (nombre real 2026)
-  "gpt-4o"
+  "gpt-5-nano",
+  "gpt-4.1-mini"
 ];
 
 async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {
@@ -199,7 +199,16 @@ export async function generarMisionesTactica(contexto: any) {
   const phase = (contexto.phase || 'MENSTRUAL').toUpperCase();
   try {
     const text = await generateWithFallback({
-      contents: [{ role: 'user', parts: [{ text: `Actúa como MateCare. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}. Formato JSON: [{title, description, category}].` }] }],
+      contents: [
+        { 
+          role: 'user', 
+          parts: [{ text: `Eres un estratega de relaciones premium. Genera 3 misiones tácticas para un hombre cuya pareja está en fase ${phase}.
+          Las misiones deben ser breves, elegantes y accionables.
+          FORMATO JSON: [{"title": "...", "description": "...", "category": "ROMANTIC|ACTS|VERBAL|PHYSICAL|QUALITY"}]
+          REGLA CRÍTICA: Cada descripción debe tener máximo 60 palabras y ser un solo párrafo.` 
+          }] 
+        }
+      ],
       config: {
         responseMimeType: "application/json",
         thinkingConfig: {

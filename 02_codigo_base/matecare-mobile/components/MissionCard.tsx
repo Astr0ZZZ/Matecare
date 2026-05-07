@@ -182,7 +182,7 @@ export default function MissionCard({
         </View>
 
 
-        <Text style={[styles.missionDesc, { color: theme.colors.textMuted, fontFamily: theme.typography.bodyFont }]} numberOfLines={2}>
+        <Text style={[styles.missionDesc, { color: theme.colors.textMuted, fontFamily: theme.typography.bodyFont }]}>
           {description}
         </Text>
 

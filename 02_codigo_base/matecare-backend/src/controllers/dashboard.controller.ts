@@ -41,72 +41,77 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
   if (!userId) return res.status(401).json({ error: 'User ID is required' });
 
   try {
-    console.log(`[DASHBOARD] Starting quick summary for ${userId}`);
-
-    console.log(`[DASHBOARD] Fetching DB core data for ${userId}`);
-    const dbStart = Date.now();
     const [user, profile, personalityProfile] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { points: true } }),
       prisma.partnerProfile.findUnique({ where: { userId } }),
       prisma.personalityProfile.findUnique({ where: { userId } })
     ]);
-    console.log(`[DASHBOARD] DB core data fetched in ${Date.now() - dbStart}ms`);
 
     if (!profile) return res.status(404).json({ error: 'Partner profile not found' });
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // 2. Missions (Try Cache -> DB)
-    const missionStart = Date.now();
+    // 1. Fechas y claves
     const now = new Date();
     const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const missionCacheKey = `missions:${userId}:${localDate}`;
     const dailyCacheKey = `daily:${userId}:${localDate}`;
+    const todayStart = new Date();
+    todayStart.setUTCHours(0,0,0,0);
 
+    // 2. Fetch Missions (Limit 3)
     let missions: any[] = [];
     const cachedMissions = isRedisConnected ? await redis.get(missionCacheKey) : null;
-    
     if (cachedMissions) {
       missions = JSON.parse(cachedMissions);
     } else {
-      const todayStart = new Date();
-      todayStart.setHours(0,0,0,0);
       missions = await prisma.mission.findMany({ 
         where: { userId, createdAt: { gte: todayStart } },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 3
       });
     }
-    console.log(`[DASHBOARD] Missions fetched in ${Date.now() - missionStart}ms`);
 
-    // 3. Recommendation (Try Cache -> DB -> Memory)
-    const recStart = Date.now();
+    // 3. Fetch Recommendation
     let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
-    
     if (!recommendation) {
-      const dbRec = await prisma.personalityInsight.findUnique({
-        where: { cacheKey: dailyCacheKey }
-      });
+      const dbRec = await prisma.personalityInsight.findUnique({ where: { cacheKey: dailyCacheKey } });
       if (dbRec) recommendation = dbRec.insight;
     }
-    console.log(`[DASHBOARD] Recommendation check in ${Date.now() - recStart}ms`);
 
-
-    // 4. Background AI Task (If needed)
+    // 4. Background Task
     const needsMissions = missions.length === 0;
     const needsRec = !recommendation;
-    
-    // Banderas de estado para la respuesta
-    const isGeneratingMissions = needsMissions;
-    const isGeneratingRec = needsRec;
 
     if (needsMissions || needsRec) {
-      console.log(`[DASHBOARD] Invocando tarea de background para ${userId}. Rec:${needsRec}, Miss:${needsMissions}`);
-      
       (async () => {
         try {
-          const [generatedMissions, generatedRec] = await Promise.all([
-            needsMissions ? generarMisionesTactica({ phase: cycle.phase }) : Promise.resolve(null),
-            needsRec ? (async () => {
+          const tasks = [];
+
+          if (needsMissions) {
+            tasks.push((async () => {
+              // Anti-duplicados: re-chequeo
+              const existing = await prisma.mission.count({ where: { userId, createdAt: { gte: todayStart } } });
+              if (existing > 0) return;
+
+              const gen = await generarMisionesTactica({ phase: cycle.phase });
+              if (Array.isArray(gen) && gen.length > 0) {
+                const saved = await Promise.all(gen.slice(0, 3).map(m => prisma.mission.create({
+                  data: {
+                    userId, 
+                    title: String(m.title || 'Misión Táctica').substring(0, 100), 
+                    description: String(m.description || '').substring(0, 500),
+                    category: (m.category || 'ACTS').toUpperCase(), 
+                    phaseContext: (cycle.phase as string).toUpperCase() as any
+                  }
+                })));
+                if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(saved), { EX: 82800 });
+              }
+            })());
+          }
+
+          if (needsRec) {
+            tasks.push((async () => {
               const userTier = await determineTier(userId);
               const messages = buildMessages({
                 phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
@@ -121,42 +126,27 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
                 preferences: (personalityProfile?.preferences as any) || {},
                 userTier
               });
-              return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
-            })() : Promise.resolve(null)
-          ]);
+              
+              // Inyectar restricción de longitud en el último mensaje
+              messages[messages.length-1].content += ". Responde en un solo párrafo de máximo 60 palabras.";
 
-          // Guardar misiones
-          if (Array.isArray(generatedMissions) && generatedMissions.length > 0) {
-            const saved = await Promise.all(generatedMissions.slice(0, 3).map(m => prisma.mission.create({
-              data: {
-                userId, 
-                title: String(m.title || 'Misión Táctica').substring(0, 100), 
-                description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
-                category: (m.category || 'ACTS').toUpperCase(), 
-                isCompleted: false,
-                progress: 0, 
-                phaseContext: (cycle.phase as string).toUpperCase() as any
+              const generated = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
+              
+              if (generated) {
+                memoryCache[dailyCacheKey] = generated;
+                if (isRedisConnected) await redis.set(dailyCacheKey, generated, { EX: 82800 });
+                await prisma.personalityInsight.upsert({
+                  where: { cacheKey: dailyCacheKey },
+                  update: { insight: generated, expiresAt: new Date(Date.now() + 86400000) },
+                  create: { cacheKey: dailyCacheKey, insight: generated, expiresAt: new Date(Date.now() + 86400000) }
+                });
               }
-            })));
-            if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(saved), { EX: 82800 });
-            console.log(`[DASHBOARD] BG: ${saved.length} misiones guardadas.`);
+            })());
           }
 
-          // Guardar recomendación
-          if (generatedRec) {
-            memoryCache[dailyCacheKey] = generatedRec;
-            if (isRedisConnected) await redis.set(dailyCacheKey, generatedRec, { EX: 82800 });
-            await prisma.personalityInsight.upsert({
-              where: { cacheKey: dailyCacheKey },
-              update: { insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) },
-              create: { cacheKey: dailyCacheKey, insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) }
-            });
-            console.log(`[DASHBOARD] BG: Recomendación guardada.`);
-          }
-          
-          console.log(`[DASHBOARD] Tarea de background finalizada con éxito para ${userId}`);
+          await Promise.all(tasks);
         } catch (err) {
-          console.error('[DASHBOARD] Error en tarea de background:', err);
+          console.error('[DASHBOARD] BG task failed:', err);
         }
       })();
     }
@@ -168,15 +158,12 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       recommendation: {
         text: recommendation || "Sincronizando tácticas...",
         fromCache: !!recommendation,
-        isGenerating: isGeneratingRec // El oráculo solo muestra carga si FALTA su texto
+        isGenerating: needsRec
       }
     });
-
-
 
   } catch (error) {
     console.error('[DASHBOARD] Critical error:', error);
     return res.status(500).json({ error: 'Dashboard core failure' });
   }
 };
-
