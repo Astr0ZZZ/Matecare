@@ -10,6 +10,15 @@ export interface CycleState {
   daysUntilNextPeriod: number
 }
 
+/**
+ * Calcula el estado actual del ciclo menstrual basado en datos biológicos.
+ * 
+ * Rangos definidos:
+ * - MENSTRUAL: Día 1 al día periodDuration.
+ * - OVULATION: Ventana fértil de 5 días (cycleLength - 16 hasta cycleLength - 12).
+ * - FOLLICULAR: Espacio entre MENSTRUAL y OVULATION.
+ * - LUTEAL: Espacio entre OVULATION y el final del ciclo.
+ */
 export function calculateCycleState(
   lastPeriodDate: Date,
   cycleLength: number,
@@ -17,21 +26,22 @@ export function calculateCycleState(
 ): CycleState {
   const today = new Date();
   
-  // Normalize dates to midnight to avoid issues with hours
+  // Normalizar fechas a medianoche UTC para evitar problemas con zonas horarias/horas
   const start = new Date(lastPeriodDate);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
   const current = new Date(today);
-  current.setHours(0, 0, 0, 0);
+  current.setUTCHours(0, 0, 0, 0);
 
   const msPerDay = 1000 * 60 * 60 * 24;
   const diffInMs = current.getTime() - start.getTime();
   const diffInDays = Math.floor(diffInMs / msPerDay);
   
-  // Day of cycle (1-indexed)
-  const dayOfCycle = (diffInDays % cycleLength) + 1;
+  // Día del ciclo (1-indexed) usando módulo para ciclos repetitivos
+  let dayOfCycle = (diffInDays % cycleLength) + 1;
+  if (dayOfCycle <= 0) dayOfCycle += cycleLength; // Manejar fechas pasadas/futuras
 
-  // Calculate ovulation day (scaled to cycle length, standard is 14 for a 28-day cycle)
-  const ovulationDay = Math.floor(cycleLength / 2);
+  const ovulationStart = cycleLength - 16;
+  const ovulationEnd = cycleLength - 12;
 
   let phase: CyclePhase;
   let daysUntilNextPhase: number;
@@ -39,12 +49,12 @@ export function calculateCycleState(
   if (dayOfCycle <= periodDuration) {
     phase = 'MENSTRUAL';
     daysUntilNextPhase = periodDuration - dayOfCycle + 1;
-  } else if (dayOfCycle < ovulationDay) {
+  } else if (dayOfCycle < ovulationStart) {
     phase = 'FOLLICULAR';
-    daysUntilNextPhase = ovulationDay - dayOfCycle;
-  } else if (dayOfCycle === ovulationDay) {
+    daysUntilNextPhase = ovulationStart - dayOfCycle;
+  } else if (dayOfCycle <= ovulationEnd) {
     phase = 'OVULATION';
-    daysUntilNextPhase = 1; // Ovulation is usually 1 day in this model
+    daysUntilNextPhase = ovulationEnd - dayOfCycle + 1;
   } else {
     phase = 'LUTEAL';
     daysUntilNextPhase = cycleLength - dayOfCycle + 1;
