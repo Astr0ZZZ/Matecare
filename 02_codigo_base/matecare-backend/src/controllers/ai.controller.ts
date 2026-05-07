@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { buildMessages } from '../services/promptEngine.service';
+import { buildMasterPrompt } from '../services/promptEngine.service';
 import { askAI } from '../services/aiClient.service';
 import { routeToAI, detectTier } from '../services/aiRouter.service';
 import { getInsight, detectInsightContext } from '../services/insightCache.service';
@@ -69,7 +69,6 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
     }
 
     // 2. Conversación general (Llamada a AI)
-    // Validar que cada elemento del historial tenga la forma correcta
     const trimmedHistory = Array.isArray(history)
       ? history
           .filter(
@@ -82,21 +81,7 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
           .slice(-8)
       : [];
 
-    const messages = buildMessages({
-      phase: cycle.phase,
-      dayOfCycle: cycle.dayOfCycle,
-      daysUntilNextPhase: cycle.daysUntilNextPhase,
-      personalityType: profile.personalityType,
-      socialLevel: profile.socialLevel,
-      privacyLevel: profile.privacyLevel,
-      conflictStyle: profile.conflictStyle,
-      affectionStyle: profile.affectionStyle,
-      userInput: mensaje,
-      interactionHistory: trimmedHistory,
-      mbtiType: personalityProfile?.mbtiType as MBTIType | undefined,
-      attachmentStyle: personalityProfile?.attachmentStyle as AttachmentStyle | undefined,
-      preferences: personalityProfile?.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
-    });
+    const messages = await buildMasterPrompt(userId, mensaje, trimmedHistory);
 
     const tier = detectTier(mensaje);
     const aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
@@ -170,18 +155,9 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
         preferences: personalityProfile.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
       });
     } else {
-      // Fallback a construcción de prompt genérico
-      const messages = buildMessages({
-        phase: cycle.phase,
-        dayOfCycle: cycle.dayOfCycle,
-        daysUntilNextPhase: cycle.daysUntilNextPhase,
-        personalityType: profile.personalityType,
-        socialLevel: profile.socialLevel,
-        privacyLevel: profile.privacyLevel,
-        conflictStyle: profile.conflictStyle,
-        affectionStyle: profile.affectionStyle,
-      });
-      const tier = detectTier(); // Economy tier para recomendaciones automáticas
+      // Usar el ensamblador para recomendación diaria
+      const messages = await buildMasterPrompt(userId);
+      const tier = detectTier(); 
       aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
     }
 
