@@ -12,9 +12,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const { theme, isLoaded } = useTheme();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isLoaded) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -23,18 +24,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     } else if (session && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [session, loading, segments]);
+  }, [session, loading, segments, isLoaded]);
 
   const inAuthGroup = segments[0] === '(auth)';
   const isWrongRoute = (session && inAuthGroup) || (!session && !inAuthGroup);
 
-  if (loading || isWrongRoute) {
+  if (loading || !isLoaded || isWrongRoute) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#044422', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#CFAA3C" />
-        <Text style={{ marginTop: 20, color: '#CFAA3C', fontFamily: 'OpenSans-Bold', letterSpacing: 2 }}>
-          AUTENTICANDO...
-        </Text>
+      <View style={{ flex: 1, backgroundColor: isLoaded ? theme.colors.background : '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={isLoaded ? theme.colors.accent : '#FFF'} />
       </View>
     );
   }

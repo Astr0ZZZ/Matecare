@@ -37,7 +37,7 @@ export default function Profile() {
           style: "destructive",
           onPress: async () => {
             await supabase.auth.signOut();
-            router.replace('/(auth)/login');
+            // La redirección la maneja automáticamente el AuthGuard en _layout.tsx
           }
         }
       ]
