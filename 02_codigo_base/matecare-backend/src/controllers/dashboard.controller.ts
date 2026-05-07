@@ -43,18 +43,21 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
     console.log(`[DASHBOARD] Starting quick summary for ${userId}`);
 
-    // 1. Core Data (DB)
+    console.log(`[DASHBOARD] Fetching DB core data for ${userId}`);
+    const dbStart = Date.now();
     const [user, profile, personalityProfile] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { points: true } }),
       prisma.partnerProfile.findUnique({ where: { userId } }),
       prisma.personalityProfile.findUnique({ where: { userId } })
     ]);
+    console.log(`[DASHBOARD] DB core data fetched in ${Date.now() - dbStart}ms`);
 
     if (!profile) return res.status(404).json({ error: 'Partner profile not found' });
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
     // 2. Missions (Try Cache -> DB)
+    const missionStart = Date.now();
     const now = new Date();
     const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const missionCacheKey = `missions:${userId}:${localDate}`;
@@ -73,8 +76,10 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         orderBy: { createdAt: 'desc' }
       });
     }
+    console.log(`[DASHBOARD] Missions fetched in ${Date.now() - missionStart}ms`);
 
     // 3. Recommendation (Try Cache -> DB -> Memory)
+    const recStart = Date.now();
     let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
     
     if (!recommendation) {
@@ -83,71 +88,61 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       });
       if (dbRec) recommendation = dbRec.insight;
     }
+    console.log(`[DASHBOARD] Recommendation check in ${Date.now() - recStart}ms`);
+
 
     // 4. Background AI Task (If needed)
     const needsMissions = missions.length === 0;
     const needsRec = !recommendation;
-    const isGenerating = needsMissions || needsRec;
+    
+    // Banderas de estado para la respuesta
+    const isGeneratingMissions = needsMissions;
+    const isGeneratingRec = needsRec;
 
-    if (isGenerating) {
-      console.log(`[DASHBOARD] Content needed. Starting AI generation in BACKGROUND for ${userId}`);
+    if (needsMissions || needsRec) {
+      console.log(`[DASHBOARD] Invocando tarea de background para ${userId}. Rec:${needsRec}, Miss:${needsMissions}`);
       
-      // Lanzamos la tarea sin await para responder inmediatamente
       (async () => {
         try {
           const [generatedMissions, generatedRec] = await Promise.all([
             needsMissions ? generarMisionesTactica({ phase: cycle.phase }) : Promise.resolve(null),
             needsRec ? (async () => {
-              if (personalityProfile?.mbtiType) {
-                return await getInsight({
-                  mbtiType: personalityProfile.mbtiType as MBTIType,
-                  phase: cycle.phase as CyclePhase,
-                  context: 'plan_romantico',
-                  affectionStyle: (profile.affectionStyle as AffectionStyle) || 'QUALITY',
-                  conflictStyle: (profile.conflictStyle as ConflictStyle) || 'CALM',
-                  attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
-                  preferences: (personalityProfile?.preferences as any) || {},
-                });
-              } else {
-                const userTier = await determineTier(userId);
-                const messages = buildMessages({
-                  phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
-                  daysUntilNextPhase: cycle.daysUntilNextPhase,
-                  personalityType: profile.personalityType || 'AMBIVERT', 
-                  socialLevel: profile.socialLevel || 'MEDIUM',
-                  privacyLevel: profile.privacyLevel || 'MEDIUM', 
-                  conflictStyle: profile.conflictStyle || 'CALM',
-                  affectionStyle: profile.affectionStyle || 'QUALITY',
-                  mbtiType: personalityProfile?.mbtiType as MBTIType,
-                  attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
-                  preferences: (personalityProfile?.preferences as any) || {},
-                  userTier
-                });
-                if (messages.length > 0) {
-                  return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
-                }
-                return null;
-              }
+              const userTier = await determineTier(userId);
+              const messages = buildMessages({
+                phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
+                daysUntilNextPhase: cycle.daysUntilNextPhase,
+                personalityType: profile.personalityType || 'AMBIVERT', 
+                socialLevel: profile.socialLevel || 'MEDIUM',
+                privacyLevel: profile.privacyLevel || 'MEDIUM', 
+                conflictStyle: profile.conflictStyle || 'CALM',
+                affectionStyle: profile.affectionStyle || 'QUALITY',
+                mbtiType: personalityProfile?.mbtiType as any,
+                attachmentStyle: (personalityProfile?.attachmentStyle as any) || 'SECURE',
+                preferences: (personalityProfile?.preferences as any) || {},
+                userTier
+              });
+              return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
             })() : Promise.resolve(null)
           ]);
 
+          // Guardar misiones
           if (Array.isArray(generatedMissions) && generatedMissions.length > 0) {
-            const savedMissions = await Promise.all(generatedMissions.slice(0, 3).map(async (m: any) => {
-              return prisma.mission.create({
-                data: {
-                  userId, 
-                  title: String(m.title || 'Misión Táctica').substring(0, 100), 
-                  description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
-                  category: (m.category || 'ROMANTIC').toUpperCase(), 
-                  isCompleted: false,
-                  progress: 0, 
-                  phaseContext: (cycle.phase as string).toUpperCase() as any
-                }
-              });
-            }));
-            if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(savedMissions), { EX: 82800 });
+            const saved = await Promise.all(generatedMissions.slice(0, 3).map(m => prisma.mission.create({
+              data: {
+                userId, 
+                title: String(m.title || 'Misión Táctica').substring(0, 100), 
+                description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
+                category: (m.category || 'ACTS').toUpperCase(), 
+                isCompleted: false,
+                progress: 0, 
+                phaseContext: (cycle.phase as string).toUpperCase() as any
+              }
+            })));
+            if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(saved), { EX: 82800 });
+            console.log(`[DASHBOARD] BG: ${saved.length} misiones guardadas.`);
           }
 
+          // Guardar recomendación
           if (generatedRec) {
             memoryCache[dailyCacheKey] = generatedRec;
             if (isRedisConnected) await redis.set(dailyCacheKey, generatedRec, { EX: 82800 });
@@ -156,16 +151,15 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
               update: { insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) },
               create: { cacheKey: dailyCacheKey, insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) }
             });
+            console.log(`[DASHBOARD] BG: Recomendación guardada.`);
           }
-          console.log(`[DASHBOARD] Background AI generation COMPLETED for ${userId}`);
+          
+          console.log(`[DASHBOARD] Tarea de background finalizada con éxito para ${userId}`);
         } catch (err) {
-          console.error('[DASHBOARD] Background AI error:', err);
+          console.error('[DASHBOARD] Error en tarea de background:', err);
         }
       })();
     }
-
-    const duration = Date.now() - start;
-    console.log(`[DASHBOARD] Quick response for ${userId} ready in ${duration}ms. (isGenerating: ${isGenerating})`);
 
     return res.json({
       profile: { ...profile, points: user?.points || 0, mbti: personalityProfile || null },
@@ -174,9 +168,11 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       recommendation: {
         text: recommendation || "Sincronizando tácticas...",
         fromCache: !!recommendation,
-        isGenerating
+        isGenerating: isGeneratingRec // El oráculo solo muestra carga si FALTA su texto
       }
     });
+
+
 
   } catch (error) {
     console.error('[DASHBOARD] Critical error:', error);

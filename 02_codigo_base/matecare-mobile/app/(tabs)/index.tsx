@@ -63,9 +63,13 @@ export default function Dashboard() {
         }
       }
     } catch (error: any) {
-      console.error("[Dashboard] Error cargando resumen:", error);
+      if (error.name === 'AbortError' || error.message === 'Aborted') {
+        console.log(`[Dashboard] Petición ${isPolling ? 'de polling ' : ''}cancelada o timeout. Reintentando en el próximo ciclo.`);
+      } else {
+        console.error("[Dashboard] Error cargando resumen:", error);
+      }
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
       setRefreshing(false);
     }
   }, [user?.id]);

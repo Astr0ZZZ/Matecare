@@ -19,20 +19,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!session && !inAuthGroup) {
-      // Si no hay sesión y no estamos en auth, mandamos a login
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
-      // Si hay sesión y estamos en auth, mandamos a tabs (el dashboard se encargará del perfil)
       router.replace('/(tabs)');
     }
   }, [session, loading, segments]);
 
-  if (loading) {
+  const inAuthGroup = segments[0] === '(auth)';
+  const isWrongRoute = (session && inAuthGroup) || (!session && !inAuthGroup);
+
+  if (loading || isWrongRoute) {
     return (
       <View style={{ flex: 1, backgroundColor: '#044422', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#CFAA3C" />
         <Text style={{ marginTop: 20, color: '#CFAA3C', fontFamily: 'OpenSans-Bold', letterSpacing: 2 }}>
-          SINCRONIZANDO MATRIZ...
+          AUTENTICANDO...
         </Text>
       </View>
     );
@@ -40,6 +41,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

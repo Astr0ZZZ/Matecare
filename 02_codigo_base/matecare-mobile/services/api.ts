@@ -26,7 +26,10 @@ export async function apiFetch(path: string, options?: RequestInit) {
   console.log(`[API_FETCH] Calling: ${fullUrl}`);
   
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout para respuesta rápida
+  const timeoutId = setTimeout(() => {
+    console.warn(`[API] TIMEOUT alcanzado (20s) para: ${fullUrl}`);
+    controller.abort();
+  }, 20000); // 20s timeout para mayor margen
 
   try {
     const response = await fetch(fullUrl, {
