@@ -31,7 +31,7 @@ export default function Login() {
       if (error) {
         setErrorMsg(error.message);
       } else if (data.user) {
-        router.replace('/(tabs)');
+        router.replace('/');
       }
     } catch (err) {
       setErrorMsg('Error de conexión con el centro de mando.');
