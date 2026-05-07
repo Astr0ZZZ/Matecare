@@ -41,7 +41,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
   if (!userId) return res.status(401).json({ error: 'User ID is required' });
 
   try {
-    console.log(`[DASHBOARD] Starting summary for ${userId}`);
+    console.log(`[DASHBOARD] Starting quick summary for ${userId}`);
 
     // 1. Core Data (DB)
     const [user, profile, personalityProfile] = await Promise.all([
@@ -78,21 +78,22 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
     
     if (!recommendation) {
-      // Intentamos buscar en la DB de insights usando una clave especial del día
       const dbRec = await prisma.personalityInsight.findUnique({
         where: { cacheKey: dailyCacheKey }
       });
       if (dbRec) recommendation = dbRec.insight;
     }
 
-    // 4. AI Generation (with a smart 5s wait window)
+    // 4. Background AI Task (If needed)
     const needsMissions = missions.length === 0;
     const needsRec = !recommendation;
+    const isGenerating = needsMissions || needsRec;
 
-    if (needsMissions || needsRec) {
-      console.log(`[DASHBOARD] Content needed. Starting AI sync...`);
+    if (isGenerating) {
+      console.log(`[DASHBOARD] Content needed. Starting AI generation in BACKGROUND for ${userId}`);
       
-      const aiPromise = (async () => {
+      // Lanzamos la tarea sin await para responder inmediatamente
+      (async () => {
         try {
           const [generatedMissions, generatedRec] = await Promise.all([
             needsMissions ? generarMisionesTactica({ phase: cycle.phase }) : Promise.resolve(null),
@@ -109,7 +110,6 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
                 });
               } else {
                 const userTier = await determineTier(userId);
-                
                 const messages = buildMessages({
                   phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
                   daysUntilNextPhase: cycle.daysUntilNextPhase,
@@ -123,79 +123,58 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
                   preferences: (personalityProfile?.preferences as any) || {},
                   userTier
                 });
-
                 if (messages.length > 0) {
                   return await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
                 }
-                return "La matriz está sincronizando tus datos. Vuelve en un momento.";
+                return null;
               }
             })() : Promise.resolve(null)
           ]);
 
           if (Array.isArray(generatedMissions) && generatedMissions.length > 0) {
-            try {
-              const savedMissions = await Promise.all(generatedMissions.slice(0, 3).map(async (m: any) => {
-                return prisma.mission.create({
-                  data: {
-                    userId, 
-                    title: String(m.title || 'Misión Táctica').substring(0, 100), 
-                    description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
-                    category: (m.category || 'ROMANTIC').toUpperCase(), 
-                    isCompleted: false,
-                    progress: 0, 
-                    phaseContext: (cycle.phase as string).toUpperCase() as any
-                  }
-                });
-              }));
-              missions = savedMissions;
-              if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(missions), { EX: 82800 });
-            } catch (dbErr) {
-              console.error('[DASHBOARD] Error saving AI missions to DB:', dbErr);
-              // Si falla la DB, usamos los generados en memoria para no fallar la respuesta
-              missions = generatedMissions.slice(0, 3);
-            }
+            const savedMissions = await Promise.all(generatedMissions.slice(0, 3).map(async (m: any) => {
+              return prisma.mission.create({
+                data: {
+                  userId, 
+                  title: String(m.title || 'Misión Táctica').substring(0, 100), 
+                  description: String(m.description || 'Consulta el centro de mando.').substring(0, 500),
+                  category: (m.category || 'ROMANTIC').toUpperCase(), 
+                  isCompleted: false,
+                  progress: 0, 
+                  phaseContext: (cycle.phase as string).toUpperCase() as any
+                }
+              });
+            }));
+            if (isRedisConnected) await redis.set(missionCacheKey, JSON.stringify(savedMissions), { EX: 82800 });
           }
 
           if (generatedRec) {
-            recommendation = generatedRec;
-            memoryCache[dailyCacheKey] = recommendation;
-            if (isRedisConnected) await redis.set(dailyCacheKey, recommendation, { EX: 82800 });
-            
-            // Guardar en la DB para persistencia total (reutilizando tabla de insights)
+            memoryCache[dailyCacheKey] = generatedRec;
+            if (isRedisConnected) await redis.set(dailyCacheKey, generatedRec, { EX: 82800 });
             await prisma.personalityInsight.upsert({
               where: { cacheKey: dailyCacheKey },
-              update: { insight: recommendation, expiresAt: new Date(Date.now() + 86400000) },
-              create: { cacheKey: dailyCacheKey, insight: recommendation, expiresAt: new Date(Date.now() + 86400000) }
-            }).catch(e => console.error('[DASHBOARD] Error persistenting daily rec:', e));
+              update: { insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) },
+              create: { cacheKey: dailyCacheKey, insight: generatedRec, expiresAt: new Date(Date.now() + 86400000) }
+            });
           }
-        } catch (innerError) {
-          console.error('[DASHBOARD] AI background task error:', innerError);
+          console.log(`[DASHBOARD] Background AI generation COMPLETED for ${userId}`);
+        } catch (err) {
+          console.error('[DASHBOARD] Background AI error:', err);
         }
       })();
-
-      await Promise.race([
-        aiPromise,
-        new Promise(resolve => setTimeout(resolve, 4000)) // 4s timeout for better UX
-      ]);
     }
 
     const duration = Date.now() - start;
-    console.log(`[DASHBOARD] Summary for ${userId} ready in ${duration}ms.`);
+    console.log(`[DASHBOARD] Quick response for ${userId} ready in ${duration}ms. (isGenerating: ${isGenerating})`);
 
     return res.json({
-      profile: { 
-        ...profile, 
-        points: user?.points || 0, 
-        mbti: personalityProfile || null 
-      },
-      cycle: {
-        ...cycle,
-        phase: cycle.phase.toUpperCase() // Aseguramos mayúsculas para consistencia
-      },
+      profile: { ...profile, points: user?.points || 0, mbti: personalityProfile || null },
+      cycle: { ...cycle, phase: cycle.phase.toUpperCase() },
       missions: missions.length > 0 ? missions : FALLBACK_MISSIONS[cycle.phase.toUpperCase()] || FALLBACK_MISSIONS.MENSTRUAL,
       recommendation: {
-        text: String(recommendation || "Sincronizando tácticas... Refresca en unos segundos para tu estrategia personalizada."),
-        fromCache: !!recommendation
+        text: recommendation || "Sincronizando tácticas...",
+        fromCache: !!recommendation,
+        isGenerating
       }
     });
 
@@ -204,3 +183,4 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Dashboard core failure' });
   }
 };
+
