@@ -68,7 +68,18 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // 2. Conversación general (Llamada a AI)
+    // 2. Lógica de Límites (3 preguntas máximo)
+    const userMessagesCount = Array.isArray(history) 
+      ? history.filter((h: any) => h.role === 'user').length 
+      : 0;
+
+    if (userMessagesCount >= 3) {
+      return res.json({ 
+        response: "Límite táctico alcanzado. Has agotado tus 3 consultas de alta precisión para esta sesión. Reflexiona sobre las tácticas entregadas.", 
+        fromCache: true 
+      });
+    }
+
     const trimmedHistory = Array.isArray(history)
       ? history
           .filter(
@@ -78,10 +89,14 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
               (h.role === 'user' || h.role === 'assistant') &&
               typeof h.content === 'string'
           )
-          .slice(-8)
+          .slice(-6)
       : [];
 
     const messages = await buildMasterPrompt(userId, mensaje, trimmedHistory);
+    
+    // Inyectar reglas de precisión
+    const lastMsg = messages[messages.length - 1];
+    lastMsg.content += ". REGLA CRÍTICA: Solo tienes permitido responder de forma extremadamente precisa. Solo una de tus respuestas en toda la conversación puede ser extensa (máximo 100 palabras), las demás deben ser de máximo 50 palabras. No uses introducciones innecesarias.";
 
     const tier = detectTier(mensaje);
     const aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
@@ -113,11 +128,10 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // Cache Key basada en fecha, usuario y fase actual
-    const today = new Date().toISOString().split('T')[0]; 
-    const dailyCacheKey = `daily:${userId}:${today}`;
+    // Cache Key basada en fase actual para ahorrar tokens
+    const dailyCacheKey = `daily:${userId}:${cycle.phase}`;
 
-    console.log(`[AI] Iniciando recomendación para ${userId} (Fase: ${cycle.phase})`);
+    console.log(`[AI] Recomendación por fase para ${userId} (${cycle.phase})`);
 
     // 1. Intentar Caché
     if (isRedisConnected) {
@@ -157,6 +171,7 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     } else {
       // Usar el ensamblador para recomendación diaria
       const messages = await buildMasterPrompt(userId);
+      messages[messages.length - 1].content += ". Responde en un solo párrafo corto de máximo 60 palabras.";
       const tier = detectTier(); 
       aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
     }

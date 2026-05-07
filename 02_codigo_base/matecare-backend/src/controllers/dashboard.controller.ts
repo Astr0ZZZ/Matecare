@@ -55,7 +55,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     const now = new Date();
     const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const missionCacheKey = `missions:${userId}:${localDate}`;
-    const dailyCacheKey = `daily:${userId}:${localDate}`;
+    const dailyCacheKey = `daily:${userId}:${cycle.phase}`;
     const todayStart = new Date();
     todayStart.setUTCHours(0,0,0,0);
 
