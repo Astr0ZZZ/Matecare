@@ -10,14 +10,14 @@ const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 const MODEL_FALLBACK_CHAIN = [
-  "gemini-3.1-flash-lite-preview-0303",
-  "gpt-5.5-instant",
-  "gemini-1.5-flash", // Legacy fallback
+  "gpt-5-nano",
+  "gpt-4.1-mini"
 ];
 
 async function generateWithFallback(params: { contents: any[]; config: any }): Promise<string> {
   for (const model of MODEL_FALLBACK_CHAIN) {
     try {
+      console.log(`[AI] Intentando modelo: ${model}`);
       // Caso OpenAI (GPT-5.5)
       if (model.startsWith('gpt')) {
         if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'pendiente') {
@@ -40,9 +40,15 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
           messages: messages,
           max_tokens: 800,
           temperature: 0.7
-        });
+        }, { timeout: 15000 }); // 15s timeout interno para saltar al siguiente modelo si este falla
 
-        return response.choices[0]?.message?.content || "";
+        const content = response.choices[0]?.message?.content;
+        if (content && content.trim() !== "") {
+          console.log(`[AI] Éxito con ${model}`);
+          return content;
+        }
+        console.warn(`[AI] ${model} devolvió contenido vacío`);
+        continue;
       }
 
       // Caso Google (Gemini/Gemma)
@@ -56,18 +62,20 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
         config: cleanConfig
       });
 
-      if (response.text) return response.text;
-    } catch (err: any) {
-      const isQuotaError = err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota');
-      if (isQuotaError) {
-        console.warn(`[AI] Cuota agotada o error en ${model}, intentando siguiente...`);
-        continue;
+      const text = response.text;
+      if (text && text.trim() !== "") {
+        console.log(`[AI] Éxito con ${model}`);
+        return text;
       }
-      console.error(`[AI] Error crítico en ${model}:`, err.message);
-      continue; // Intentar el siguiente modelo de todas formas
+      console.warn(`[AI] ${model} devolvió respuesta vacía (¿safety filter?)`);
+      continue;
+    } catch (err: any) {
+      console.error(`[AI] Error en ${model}:`, err.status || 'ERR', err.message);
+      continue;
     }
   }
-  return "Lo más importante hoy es la presencia tranquila.";
+  console.error("[AI] Todos los modelos fallaron. Usando fallback táctico.");
+  return "Lo más importante hoy es la presencia tranquila y la escucha activa.";
 }
 
 /**

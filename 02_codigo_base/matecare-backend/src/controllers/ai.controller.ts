@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
-import { redis } from '../lib/redis';
+import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
 import { buildMessages } from '../services/promptEngine.service';
 import { askAI } from '../services/aiClient.service';
@@ -132,22 +132,28 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     const today = new Date().toISOString().split('T')[0]; 
     const dailyCacheKey = `daily:${userId}:${today}`;
 
-    // Intento leer de Redis
-    // 1. Intentar Redis
-    try {
-      const cached = await redis.get(dailyCacheKey);
-      if (cached) {
-        console.log(`[Cache] HIT Redis: ${dailyCacheKey}`);
-        return res.json({ recommendation: cached, cycle, fromCache: true });
-      }
-    } catch (redisError) {
-      // Si falla Redis, intentar memoria
-      const memoryCached = memoryCache[dailyCacheKey];
-      if (memoryCached) {
-        console.log(`[Cache] HIT Memory: ${dailyCacheKey}`);
-        return res.json({ recommendation: memoryCached, cycle, fromCache: true });
+    console.log(`[AI] Iniciando recomendación para ${userId} (Fase: ${cycle.phase})`);
+
+    // 1. Intentar Caché
+    if (isRedisConnected) {
+      try {
+        const cached = await redis.get(dailyCacheKey);
+        if (cached) {
+          console.log(`[Cache] HIT Redis: ${dailyCacheKey}`);
+          return res.json({ recommendation: cached, cycle, fromCache: true });
+        }
+      } catch (redisError) {
+        console.warn("[Cache] Fallo en lectura Redis, intentando memoria...");
       }
     }
+
+    const memoryCached = memoryCache[dailyCacheKey];
+    if (memoryCached) {
+      console.log(`[Cache] HIT Memory: ${dailyCacheKey}`);
+      return res.json({ recommendation: memoryCached, cycle, fromCache: true });
+    }
+
+    console.log(`[AI] Cache MISS. Llamando a Matriz Táctica GPT-5...`);
 
     const personalityProfile = await getPersonalityProfile(userId);
     let aiResponse: string = "";
@@ -182,9 +188,12 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
     // Guardar en Redis y Memoria
     try {
       memoryCache[dailyCacheKey] = aiResponse;
-      await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
+      if (isRedisConnected) {
+        await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
+        console.log(`[Cache] Guardado en Redis: ${dailyCacheKey}`);
+      }
     } catch (redisError) {
-      // Ignorar, ya guardamos en memoria
+      console.warn("[Cache] Error guardando en Redis, mantenido en memoria.");
     }
 
     return res.json({ recommendation: aiResponse, cycle, fromCache: false });

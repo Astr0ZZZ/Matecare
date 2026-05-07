@@ -16,10 +16,17 @@ export async function apiFetch(path: string, options?: RequestInit) {
     ...options?.headers,
   };
 
-  const fullUrl = `${API_URL || ''}${path}`;
+  // Aseguramos que la URL base termine en /api si no lo tiene
+  let baseUrl = API_URL || '';
+  if (baseUrl && !baseUrl.endsWith('/api')) {
+    baseUrl = `${baseUrl}/api`;
+  }
+
+  const fullUrl = `${baseUrl}${path}`;
+  console.log(`[API_FETCH] Calling: ${fullUrl}`);
   
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout para Gemini 3
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout para IA 2026
 
   try {
     const response = await fetch(fullUrl, {
@@ -28,14 +35,19 @@ export async function apiFetch(path: string, options?: RequestInit) {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return response;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
       console.log('[API] Petición cancelada o timeout:', fullUrl);
-      throw error;
     }
-    console.error(`Error en apiFetch (${path}):`, error);
+    console.error(`Error en apiFetch (${path}):`, error.message || error);
     throw error;
   }
 }

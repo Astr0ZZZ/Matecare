@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Platform } from 'react-native';
+
 import { useTheme } from '../../context/ThemeContext';
-import { RADIUS } from '../../constants/theme';
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -13,86 +12,65 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.accent,
-        tabBarInactiveTintColor: theme.colors.textSubtle || theme.colors.textMuted,
+        tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.background,
-          borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-          paddingTop: 8,
-          paddingHorizontal: 8,
-          elevation: 0,
-          shadowOpacity: 0,
+          backgroundColor: theme.colors.background,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.border,
+          height: Platform.OS === 'ios' ? 90 : 70,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+          paddingTop: 10,
         },
-        tabBarBackground: () => (
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={80}
-              tint="dark"
-              style={{
-                ...StyleSheet.absoluteFillObject,
-                backgroundColor: `${theme.colors.background}E6`,
-                borderTopWidth: 1,
-                borderTopColor: theme.colors.borderSubtle || theme.colors.border,
-              }}
-            />
-          ) : (
-            <View 
-              style={{
-                ...StyleSheet.absoluteFillObject,
-                backgroundColor: theme.colors.background,
-                borderTopWidth: 1,
-                borderTopColor: theme.colors.border,
-              }}
-            />
-          )
-        ),
         tabBarLabelStyle: {
-          fontSize: 9,
+          fontSize: 10,
           fontFamily: theme.typography.boldFont,
           textTransform: 'uppercase',
-          letterSpacing: 0.5,
-          marginTop: 2,
-        },
-        tabBarIconStyle: {
-          marginBottom: -2,
+          letterSpacing: 1,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Centro',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+            <Ionicons name={theme.visuals.tabIcons.centro as any} size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat AI',
+          title: 'Táctica AI',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+            <Ionicons name={theme.visuals.tabIcons.chat as any} size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'Calendario',
+          title: 'Matriz',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <Ionicons name={theme.visuals.tabIcons.calendar as any} size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="ranking"
         options={{
-          title: 'Ajustes',
+          title: 'Ranking',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="trophy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name={theme.visuals.tabIcons.profile as any} size={size} color={color} />
           ),
         }}
       />

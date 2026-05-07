@@ -16,9 +16,8 @@ export default function RankingScreen() {
 
   const fetchRanking = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/profile/leaderboard/all');
-      if (res.ok) {
-        const data = await res.json();
+      const data = await apiFetch('/profile/leaderboard/all');
+      if (Array.isArray(data)) {
         setRanking(data);
       }
     } catch (error: any) {

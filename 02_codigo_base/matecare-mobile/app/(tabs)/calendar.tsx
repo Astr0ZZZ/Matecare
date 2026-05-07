@@ -36,22 +36,16 @@ export default function CalendarScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [recRes, historyRes] = await Promise.all([
-        apiFetch(`/api/ai/recommendation/${user.id}`),
-        apiFetch(`/api/missions/history/${user.id}`)
+      const [cycleData, missions] = await Promise.all([
+        apiFetch(`/cycle/current/${user.id}`),
+        apiFetch(`/missions/history/${user.id}`)
       ]);
 
-      let cycleData = null;
-      let missions = [];
-
-      if (recRes.ok) {
-        const data = await recRes.json();
-        cycleData = data.cycle;
-        setCycleInfo(data.cycle);
+      if (cycleData) {
+        setCycleInfo(cycleData);
       }
 
-      if (historyRes.ok) {
-        missions = await historyRes.json();
+      if (Array.isArray(missions)) {
         setMissionHistory(missions);
       }
 

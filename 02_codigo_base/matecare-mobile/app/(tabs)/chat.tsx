@@ -51,10 +51,9 @@ export default function Chat() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const res = await apiFetch(`/api/ai/recommendation/${user.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setFaseActual(data.cycle.phase);
+          const data = await apiFetch(`/cycle/current/${user.id}`);
+          if (data && data.phase) {
+            setFaseActual(data.phase);
           }
         }
       } catch (error: any) {

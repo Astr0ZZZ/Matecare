@@ -37,23 +37,14 @@ export default function ConfirmOnboarding() {
     };
 
     try {
-      const response = await apiFetch('/api/profile', {
+      await apiFetch('/profile', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
 
-      const responseData = await response.json();
-
-      if (response.ok) {
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert(
-          'Fallo en la Matriz', 
-          `Error: ${responseData.error}`
-        );
-      }
+      router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Error de Enlace', error.message);
+      Alert.alert('Fallo en la Matriz', error.message || 'No se pudo crear el perfil táctico');
     } finally {
       setLoading(false);
     }

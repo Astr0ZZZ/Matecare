@@ -1,172 +1,261 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, Platform } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Circle, G, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 import Animated, { 
   useSharedValue, 
+  useAnimatedProps, 
+  useAnimatedStyle,
+  withTiming, 
+  withRepeat,
   withSequence,
   Easing, 
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  useAnimatedProps
 } from 'react-native-reanimated';
-import { TYPOGRAPHY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { TYPOGRAPHY } from '../constants/theme';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../context/ThemeContext';
-import { MotiView } from 'moti';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedView = Animated.createAnimatedComponent(View);
 
 interface CycleCompassHUDProps {
   dayOfCycle: number;
-  cycleLength: number;
+  cycleLength?: number;
   phaseLabel: string;
 }
 
-export default function CycleCompassHUD({ dayOfCycle, cycleLength, phaseLabel }: CycleCompassHUDProps) {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedView = Animated.createAnimatedComponent(View);
+
+export default function CycleCompassHUD({ dayOfCycle, cycleLength = 28, phaseLabel }: CycleCompassHUDProps) {
   const { theme } = useTheme();
-  const rotation = useSharedValue(0);
-  const auraScale = useSharedValue(1);
+  const radio = 85;
+  const strokeWidth = 14;
+  const centerX = 110;
+  const centerY = 110;
+  const circumference = 2 * Math.PI * radio;
+  
+  const safePhase = phaseLabel || 'MENSTRUAL';
+  const phaseMapping: Record<string, keyof typeof theme.colors.phases> = {
+    'MENSTRUAL': 'MENSTRUAL',
+    'FOLICULAR': 'FOLLICULAR',
+    'FOLLICULAR': 'FOLLICULAR', // English
+    'OVULACION': 'OVULATION',
+    'OVULACIÓN': 'OVULATION',
+    'OVULATION': 'OVULATION', // English
+    'LUTEA': 'LUTEAL',
+    'LÚTEA': 'LUTEAL',
+    'LUTEAL': 'LUTEAL' // English
+  };
+  const phaseKey = phaseMapping[safePhase.toUpperCase()] || 'MENSTRUAL';
+  const phaseColor = theme.colors.phases[phaseKey] || theme.colors.accent;
+
+  const progress = useSharedValue(0);
+  const flicker = useSharedValue(1);
+  const aura = useSharedValue(1);
 
   useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 20000, easing: Easing.linear }),
-      -1,
-      false
-    );
-    auraScale.value = withRepeat(
-      withSequence(
-        withTiming(1.2, { duration: 2000 }),
-        withTiming(1, { duration: 2000 })
-      ),
-      -1,
-      true
-    );
-  }, []);
+    progress.value = withTiming(dayOfCycle / cycleLength, {
+      duration: 1500,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+
+    if (theme.visuals.material.animationStyle === 'flicker') {
+      flicker.value = withRepeat(
+        withSequence(
+          withTiming(0.7, { duration: 50 }),
+          withTiming(1, { duration: 100 }),
+          withTiming(0.9, { duration: 30 }),
+          withTiming(1, { duration: 200 })
+        ),
+        -1, true
+      );
+    } else {
+      flicker.value = 1;
+    }
+
+    if (theme.visuals.material.animationStyle === 'aura') {
+      aura.value = withRepeat(
+        withTiming(1.2, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+        -1, true
+      );
+    } else {
+      aura.value = 1;
+    }
+  }, [dayOfCycle, theme.id]);
 
   const auraStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: auraScale.value }],
+    transform: [{ scale: aura.value }],
+    opacity: (aura.value - 1) * 2 + 0.3,
   }));
 
-  const getPhaseColor = () => {
-    const label = phaseLabel.toUpperCase();
-    if (label.includes('MENSTRUAL')) return theme.colors.phases.MENSTRUAL;
-    if (label.includes('FOLICULAR')) return theme.colors.phases.FOLLICULAR;
-    if (label.includes('OVULACION') || label.includes('OVULACIÓN')) return theme.colors.phases.OVULATION;
-    if (label.includes('LUTEA') || label.includes('LÚTEA')) return theme.colors.phases.LUTEAL;
-    return theme.colors.accent;
-  };
+  const radarAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+    opacity: flicker.value,
+  }));
 
-  const phaseColor = getPhaseColor();
+  const cyberAnimatedProps = useAnimatedProps(() => {
+    const segments = 24;
+    const gap = 2;
+    const segmentLength = (circumference / segments) - gap;
+    const currentSegment = Math.floor(progress.value * segments);
+    return {
+      strokeDashoffset: -currentSegment * (segmentLength + gap),
+      opacity: flicker.value
+    };
+  });
+
+  const rotationAnimatedProps = useAnimatedProps(() => ({
+    rotation: progress.value * 360,
+  }));
 
   const renderCompass = () => {
-    const progress = (dayOfCycle / cycleLength) * 100;
-    const radius = 90;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (progress / 100) * circumference;
+    switch (theme.visuals.compassType) {
+      case 'fire': // DRAGON
+        return (
+          <Svg width={220} height={220} viewBox="0 0 220 220">
+            <Defs>
+              <LinearGradient id="fireGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <Stop offset="0%" stopColor={theme.colors.primary} />
+                <Stop offset="100%" stopColor={theme.colors.accent} />
+              </LinearGradient>
+            </Defs>
+            {/* Segmentos tipo escudo */}
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Path
+                key={i}
+                d={`M ${centerX} 10 L ${centerX + 20} 30 L ${centerX - 20} 30 Z`}
+                transform={`rotate(${i * 60} ${centerX} ${centerY})`}
+                fill={theme.colors.card}
+                stroke={theme.colors.border}
+              />
+            ))}
+            <AnimatedCircle
+              cx={centerX} cy={centerY} r={radio}
+              stroke={phaseColor}
+              strokeWidth={20}
+              fill="none"
+              strokeDasharray={circumference}
+              animatedProps={radarAnimatedProps}
+              strokeLinecap="butt"
+              transform={`rotate(-90 ${centerX} ${centerY})`}
+            />
+          </Svg>
+        );
 
-    return (
-      <Svg width="200" height="200" viewBox="0 0 200 200">
-        <Defs>
-          <LinearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={phaseColor} stopOpacity="0.3" />
-            <Stop offset="100%" stopColor={phaseColor} stopOpacity="0.8" />
-          </LinearGradient>
-        </Defs>
-        <Circle
-          cx="100"
-          cy="100"
-          r={radius}
-          stroke="rgba(255,255,255,0.05)"
-          strokeWidth="8"
-          fill="none"
-        />
-        <Circle
-          cx="100"
-          cy="100"
-          r={radius}
-          stroke="url(#grad)"
-          strokeWidth="8"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          fill="none"
-          transform="rotate(-90 100 100)"
-        />
-      </Svg>
-    );
+      case 'clock': // ETHEREAL
+        return (
+          <Svg width={220} height={220} viewBox="0 0 220 220">
+            <Circle cx={centerX} cy={centerY} r={radio + 10} stroke={theme.colors.glow} strokeWidth={1} fill="none" opacity={0.2} />
+            <Circle cx={centerX} cy={centerY} r={radio - 10} stroke={theme.colors.glow} strokeWidth={1} fill="none" opacity={0.2} />
+            <AnimatedCircle
+              cx={centerX} cy={centerY} r={radio}
+              stroke={phaseColor}
+              strokeWidth={2}
+              fill="none"
+              strokeDasharray="4, 4"
+              animatedProps={radarAnimatedProps}
+              transform={`rotate(-90 ${centerX} ${centerY})`}
+            />
+            <AnimatedG originX={centerX} originY={centerY} animatedProps={rotationAnimatedProps}>
+              <Circle cx={centerX + radio} cy={centerY} r={10} fill={phaseColor} />
+              <Circle cx={centerX + radio} cy={centerY} r={15} stroke={phaseColor} strokeWidth={1} opacity={0.5} />
+            </AnimatedG>
+          </Svg>
+        );
+
+      case 'cyber': // CYBER
+        const segments = 24;
+        const gap = 2;
+        const segmentLength = (circumference / segments) - gap;
+        return (
+          <Svg width={220} height={220} viewBox="0 0 220 220">
+            {Array.from({ length: segments }).map((_, i) => (
+              <Circle
+                key={i}
+                cx={centerX} cy={centerY} r={radio}
+                stroke={theme.colors.border}
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeDasharray={`${segmentLength}, ${circumference - segmentLength}`}
+                strokeDashoffset={-i * (segmentLength + gap)}
+                opacity={0.1}
+              />
+            ))}
+            <AnimatedCircle
+              cx={centerX} cy={centerY} r={radio}
+              stroke={phaseColor}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={`${segmentLength}, ${circumference - segmentLength}`}
+              animatedProps={cyberAnimatedProps}
+            />
+          </Svg>
+        );
+
+      default: // NEVERLAND (Radar)
+        return (
+          <Svg width={220} height={220} viewBox="0 0 220 220">
+            <Defs>
+              <LinearGradient id="themeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor={theme.visuals.goldGradient[0]} />
+                <Stop offset="50%" stopColor={theme.visuals.goldGradient[1]} />
+                <Stop offset="100%" stopColor={theme.visuals.goldGradient[2]} />
+              </LinearGradient>
+            </Defs>
+            <Circle cx={centerX} cy={centerY} r={radio} stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} fill="none" />
+            <AnimatedCircle
+              cx={centerX} cy={centerY} r={radio}
+              stroke={phaseColor}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={circumference}
+              animatedProps={radarAnimatedProps}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${centerX} ${centerY})`}
+            />
+            <AnimatedG originX={centerX} originY={centerY} animatedProps={rotationAnimatedProps}>
+               <Circle cx={centerX + radio} cy={centerY} r={8} fill={phaseColor} />
+            </AnimatedG>
+          </Svg>
+        );
+    }
   };
 
   return (
-    <MotiView 
-      from={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', damping: 15 }}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       {theme.visuals.material.animationStyle === 'aura' && (
-        <AnimatedView style={[styles.auraRing, auraStyle, { backgroundColor: theme.colors.glowStrong || theme.colors.glow }]} />
+        <AnimatedView style={[styles.auraRing, auraStyle, { backgroundColor: theme.colors.glow }]} />
       )}
 
-      <View style={[
-        styles.outerRing,
-        {
-          borderColor: theme.colors.borderSubtle || theme.colors.border,
-          shadowColor: theme.colors.shadows?.glow || phaseColor,
-          ...SHADOWS.glow
-        }
-      ]}>
-        <BlurView 
-          intensity={theme.visuals.material.blurIntensity} 
-          tint="dark" 
-          style={[styles.glassContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
-        >
-          {renderCompass()}
+      <BlurView 
+        intensity={theme.visuals.material.blurIntensity} 
+        tint="dark" 
+        style={[styles.glassContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
+      >
+        {renderCompass()}
 
-          <View style={styles.centerInfo}>
-            <View style={[styles.phaseIndicator, { backgroundColor: `${phaseColor}20` }]}>
-              <View style={[styles.phaseDot, { backgroundColor: phaseColor }]} />
-              <Text style={[styles.phaseLabel, { color: phaseColor, fontFamily: theme.typography.boldFont }]}>
-                EN CURSO
-              </Text>
-            </View>
-            <Text style={[styles.mainPhase, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>
-              {phaseLabel.toUpperCase()}
-            </Text>
-            <View style={styles.dayCounterRow}>
-              <Text style={[styles.dayCounter, { color: theme.colors.textSubtle || theme.colors.textMuted, fontFamily: theme.typography.boldFont }]}>
-                Día {dayOfCycle}
-              </Text>
-              <View style={[styles.dayDivider, { backgroundColor: theme.colors.textSubtle || theme.colors.textMuted }]} />
-              <Text style={[styles.dayCounter, { color: theme.colors.textSubtle || theme.colors.textMuted, fontFamily: theme.typography.boldFont }]}>
-                {cycleLength} total
-              </Text>
-            </View>
-          </View>
-        </BlurView>
-      </View>
-    </MotiView>
+        <View style={styles.centerInfo}>
+          <Text style={[styles.phaseLabel, { color: phaseColor, fontFamily: theme.typography.boldFont }]}>
+            {theme.visuals.hudName}
+          </Text>
+          <Text style={[styles.mainPhase, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>
+            {phaseLabel.toUpperCase()}
+          </Text>
+          <Text style={[styles.dayCounter, { color: theme.colors.textMuted, fontFamily: theme.typography.boldFont }]}>
+            DÍA {dayOfCycle} / {cycleLength}
+          </Text>
+        </View>
+      </BlurView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    alignItems: 'center', 
-    marginVertical: SPACING.md, 
-    justifyContent: 'center' 
-  },
+  container: { alignItems: 'center', marginVertical: 20, justifyContent: 'center' },
   auraRing: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    opacity: 0.25,
-  },
-  outerRing: {
-    borderRadius: 115,
-    padding: 4,
-    borderWidth: 1,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    opacity: 0.3,
   },
   glassContainer: {
     width: 220,
@@ -175,50 +264,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0.5,
   },
-  centerInfo: { 
-    position: 'absolute', 
-    alignItems: 'center' 
-  },
-  phaseIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  phaseDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginRight: 5,
-  },
-  phaseLabel: { 
-    fontSize: 8, 
-    fontWeight: '700', 
-    letterSpacing: 1.5 
-  },
-  mainPhase: { 
-    fontSize: 18, 
-    marginVertical: 2,
-    letterSpacing: -0.5,
-  },
-  dayCounterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  dayCounter: { 
-    fontSize: 10, 
-    fontWeight: '600' 
-  },
-  dayDivider: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    marginHorizontal: 6,
-    opacity: 0.5,
-  }
+  centerInfo: { position: 'absolute', alignItems: 'center' },
+  phaseLabel: { fontSize: 9, fontWeight: 'bold', letterSpacing: 2 },
+  mainPhase: { fontSize: 20, marginVertical: 4 },
+  dayCounter: { fontSize: 10, fontWeight: 'bold' }
 });

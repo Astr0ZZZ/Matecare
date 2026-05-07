@@ -24,7 +24,7 @@ export const useAIChat = () => {
     setCargando(true);
 
     try {
-      const response = await apiFetch('/api/ai/chat', {
+      const data = await apiFetch('/ai/chat', {
         method: 'POST',
         body: JSON.stringify({ 
           mensaje: texto, 
@@ -36,15 +36,11 @@ export const useAIChat = () => {
         }),
       });
 
-      if (!response.ok) throw new Error('Error en la matriz táctica');
-      
-      const data = await response.json();
-
       setMensajes((prev) => [
         ...prev, 
         { 
           id: (Date.now() + 1).toString(), 
-          text: data.respuesta, 
+          text: data.response || data.respuesta, 
           emisor: 'ia',
           timestamp: Date.now()
         }

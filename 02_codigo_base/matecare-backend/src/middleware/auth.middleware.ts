@@ -18,6 +18,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   // Inject user info into request for controllers to use
-  (req as any).user = user
+  if (user) {
+    const sanitizedId = user.id.trim();
+    console.log(`[AUTH] User Authenticated: ${user.email} (ID: ${sanitizedId}, Len: ${sanitizedId.length})`);
+    (req as any).user = { ...user, id: sanitizedId };
+  }
   next()
 }

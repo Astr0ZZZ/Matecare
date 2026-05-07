@@ -1,39 +1,27 @@
-import { ThinkingLevel } from "@google/genai";
+/**
+ * MateCare Premium Theme Registry - High Engineering Edition
+ * Basado en la Guía Técnica de Arquitectura e Ingeniería de Bienestar.
+ */
 
 export type ThemeType = 'NEVERLAND' | 'ETHEREAL' | 'DRAGON' | 'CYBER';
 
 export interface ThemeColors {
-  primary: string;
+  primary: string;    
   secondary: string;  
   accent: string;     
   background: string; 
-  backgroundSecondary: string;
   card: string;
-  cardElevated: string;
   text: string;
   textMuted: string;
-  textSubtle: string;
   glow: string;
-  glowStrong: string;
   border: string;
-  borderSubtle: string;
-  success: string;
-  warning: string;
-  error: string;
   
   phases: {
     MENSTRUAL: string;
     FOLLICULAR: string;
     OVULATION: string;
     LUTEAL: string;
-  };
-
-  shadows: {
-    small: string;
-    medium: string;
-    large: string;
-    glow: string;
-  };
+  }
 }
 
 export interface ThemeDefinition {
@@ -42,24 +30,33 @@ export interface ThemeDefinition {
   colors: ThemeColors;
   typography: {
     titleFont: string;
-    boldFont: string;
     bodyFont: string;
+    boldFont: string;
   };
   visuals: {
     hudName: string;
     emojiSet: {
-      status: string;
       mission: string;
       rec: string;
+      status: string;
+      phase: string;
     };
-    hasGlowEffect: boolean;
-    goldGradient?: string[];
+    tabIcons: {
+      centro: string;
+      chat: string;
+      calendar: string;
+      profile: string;
+    };
     material: {
       blurIntensity: number;
-      progressType: 'linear' | 'segmented';
-      animationStyle: 'pulse' | 'aura' | 'none';
+      glowSpread: number;
+      animationStyle: 'organic' | 'aura' | 'turbulence' | 'flicker';
+      progressStyle: 'smooth' | 'segmented';
     };
-  };
+    hasGlowEffect: boolean;
+    compassType: 'radar' | 'fire' | 'clock' | 'cyber';
+    goldGradient: readonly [string, string, ...string[]]; 
+  }
 }
 
 export const THEMES: Record<ThemeType, ThemeDefinition> = {
@@ -67,185 +64,200 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
     id: 'NEVERLAND',
     name: 'Bosque Orgánico',
     colors: {
-      primary: '#033319',
-      secondary: '#C9A227',
-      accent: '#E4C34A',
-      background: '#022211',
-      backgroundSecondary: '#033D1F',
-      card: 'rgba(255, 255, 255, 0.06)',
-      cardElevated: 'rgba(255, 255, 255, 0.10)',
-      text: '#FAFAFA',
-      textMuted: '#A8B5A8',
-      textSubtle: '#6B7A6B',
-      glow: 'rgba(228, 195, 74, 0.25)',
-      glowStrong: 'rgba(228, 195, 74, 0.5)',
-      border: 'rgba(255, 255, 255, 0.10)',
-      borderSubtle: 'rgba(255, 255, 255, 0.05)',
-      success: '#4ADE80',
-      warning: '#FBBF24',
-      error: '#F87171',
+      primary: '#044422',
+      secondary: '#B8860B',
+      accent: '#CFAA3C',
+      background: '#044422',
+      card: 'rgba(255, 255, 255, 0.08)',
+      text: '#FFFFFF',
+      textMuted: '#8F8F8F',
+      glow: 'rgba(207, 170, 60, 0.3)',
+      border: 'rgba(255, 255, 255, 0.15)',
       phases: {
-        MENSTRUAL: '#F87171',
-        FOLLICULAR: '#E4C34A',
-        OVULATION: '#4ADE80',
-        LUTEAL: '#C9A227'
-      },
-      shadows: {
-        small: 'rgba(0, 0, 0, 0.15)',
-        medium: 'rgba(0, 0, 0, 0.25)',
-        large: 'rgba(0, 0, 0, 0.4)',
-        glow: 'rgba(228, 195, 74, 0.35)'
+        MENSTRUAL: '#FF4444',
+        FOLLICULAR: '#CFAA3C',
+        OVULATION: '#4CAF50',
+        LUTEAL: '#B8860B'
       }
     },
     typography: { 
-      titleFont: 'OpenSans-Bold',
-      boldFont: 'OpenSans-Bold',
-      bodyFont: 'OpenSans-Regular'
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
     visuals: {
-      hudName: 'ORÁCULO',
-      emojiSet: { status: '🌿', mission: '📜', rec: '✨' },
+      hudName: 'CYCLE COMPASS',
+      emojiSet: {
+        mission: '🌿',
+        rec: '✨',
+        status: '🧘',
+        phase: '🧪'
+      },
+      tabIcons: {
+        centro: 'leaf',
+        chat: 'chatbubble-ellipses',
+        calendar: 'calendar',
+        profile: 'person'
+      },
+      material: {
+        blurIntensity: 20,
+        glowSpread: 10,
+        animationStyle: 'organic',
+        progressStyle: 'smooth'
+      },
       hasGlowEffect: true,
-      goldGradient: ['#C9A227', '#E4C34A', '#C9A227'],
-      material: { blurIntensity: 20, progressType: 'linear', animationStyle: 'pulse' }
+      compassType: 'radar',
+      goldGradient: ['#8f6B29', '#FDE08D', '#DF9F28'] as const
     }
   },
   ETHEREAL: {
     id: 'ETHEREAL',
     name: 'Misterio Etéreo',
     colors: {
-      primary: '#4A2560',
-      secondary: '#F0D9B5',
-      accent: '#E8A8D8',
-      background: '#1A2530',
-      backgroundSecondary: '#243040',
-      card: 'rgba(74, 37, 96, 0.35)',
-      cardElevated: 'rgba(74, 37, 96, 0.50)',
-      text: '#FAFAFA',
-      textMuted: '#B8B0C0',
-      textSubtle: '#787080',
-      glow: 'rgba(232, 168, 216, 0.35)',
-      glowStrong: 'rgba(232, 168, 216, 0.6)',
-      border: 'rgba(240, 217, 181, 0.15)',
-      borderSubtle: 'rgba(240, 217, 181, 0.08)',
-      success: '#A8E8C0',
-      warning: '#F0D9B5',
-      error: '#E94560',
+      primary: '#572D6A',
+      secondary: '#E8CBA0',
+      accent: '#D698CA',
+      background: '#20303D',
+      card: 'rgba(87, 45, 106, 0.4)',
+      text: '#FFFFFF',
+      textMuted: '#A0A0A0',
+      glow: 'rgba(214, 152, 202, 0.5)', 
+      border: 'rgba(232, 203, 160, 0.2)',
       phases: {
         MENSTRUAL: '#E94560',
-        FOLLICULAR: '#E8A8D8',
-        OVULATION: '#F0D9B5',
-        LUTEAL: '#8B5CA8'
-      },
-      shadows: {
-        small: 'rgba(0, 0, 0, 0.2)',
-        medium: 'rgba(0, 0, 0, 0.35)',
-        large: 'rgba(0, 0, 0, 0.5)',
-        glow: 'rgba(232, 168, 216, 0.4)'
+        FOLLICULAR: '#D698CA',
+        OVULATION: '#E8CBA0',
+        LUTEAL: '#533483'
       }
     },
     typography: { 
-      titleFont: 'OpenSans-Bold',
-      boldFont: 'OpenSans-Bold',
-      bodyFont: 'OpenSans-Regular'
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
     visuals: {
-      hudName: 'PRISMA',
-      emojiSet: { status: '🔮', mission: '💠', rec: '🌟' },
+      hudName: 'ORÁCULO DE CICLO',
+      emojiSet: {
+        mission: '🔮',
+        rec: '🪄',
+        status: '🌙',
+        phase: '💎'
+      },
+      tabIcons: {
+        centro: 'planet',
+        chat: 'sparkles',
+        calendar: 'moon',
+        profile: 'eye'
+      },
+      material: {
+        blurIntensity: 35,
+        glowSpread: 25,
+        animationStyle: 'aura',
+        progressStyle: 'smooth'
+      },
       hasGlowEffect: true,
-      material: { blurIntensity: 30, progressType: 'segmented', animationStyle: 'aura' }
+      compassType: 'clock',
+      goldGradient: ['#E8CBA0', '#FFDAB9', '#D2B48C'] as const
     }
   },
   DRAGON: {
     id: 'DRAGON',
-    name: 'Fuego Imperial',
+    name: 'Ruleta de Fuego',
     colors: {
-      primary: '#C42B08',
-      secondary: '#F0A500',
-      accent: '#FF8C1A',
-      background: '#1C1A18',
-      backgroundSecondary: '#2A2624',
-      card: 'rgba(44, 40, 36, 0.85)',
-      cardElevated: 'rgba(60, 54, 48, 0.9)',
-      text: '#FAFAF8',
-      textMuted: '#B8A898',
-      textSubtle: '#786858',
-      glow: 'rgba(255, 140, 26, 0.35)',
-      glowStrong: 'rgba(255, 140, 26, 0.6)',
-      border: 'rgba(240, 165, 0, 0.25)',
-      borderSubtle: 'rgba(240, 165, 0, 0.12)',
-      success: '#A8D850',
-      warning: '#F0A500',
-      error: '#C42B08',
+      primary: '#B62203',
+      secondary: '#DA9202',
+      accent: '#FF7500',
+      background: '#2B2B2A',
+      card: 'rgba(43, 43, 42, 0.8)',
+      text: '#FFFFFF',
+      textMuted: '#888888',
+      glow: 'rgba(182, 34, 3, 0.6)', 
+      border: 'rgba(218, 146, 2, 0.3)',
       phases: {
-        MENSTRUAL: '#C42B08',
-        FOLLICULAR: '#FF8C1A',
-        OVULATION: '#F0A500',
-        LUTEAL: '#5A504A'
-      },
-      shadows: {
-        small: 'rgba(0, 0, 0, 0.25)',
-        medium: 'rgba(0, 0, 0, 0.4)',
-        large: 'rgba(0, 0, 0, 0.55)',
-        glow: 'rgba(255, 140, 26, 0.5)'
+        MENSTRUAL: '#B62203',
+        FOLLICULAR: '#FF7500',
+        OVULATION: '#DA9202',
+        LUTEAL: '#4A4A4A'
       }
     },
     typography: { 
-      titleFont: 'OpenSans-Bold',
-      boldFont: 'OpenSans-Bold',
-      bodyFont: 'OpenSans-Regular'
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
     visuals: {
-      hudName: 'IMPERIUM',
-      emojiSet: { status: '🐉', mission: '⚔️', rec: '🔥' },
+      hudName: 'INDICADOR DE BATALLA',
+      emojiSet: {
+        mission: '🐉',
+        rec: '🔥',
+        status: '⚔️',
+        phase: '🏰'
+      },
+      tabIcons: {
+        centro: 'flame',
+        chat: 'shield',
+        calendar: 'skull',
+        profile: 'trophy'
+      },
+      material: {
+        blurIntensity: 10,
+        glowSpread: 15,
+        animationStyle: 'turbulence',
+        progressStyle: 'smooth'
+      },
       hasGlowEffect: true,
-      material: { blurIntensity: 15, progressType: 'linear', animationStyle: 'pulse' }
+      compassType: 'fire',
+      goldGradient: ['#B62203', '#FF7500', '#DA9202'] as const
     }
   },
   CYBER: {
     id: 'CYBER',
-    name: 'Neural Interface',
+    name: 'Hacker / Jarvis',
     colors: {
-      primary: '#030025',
-      secondary: '#00C8FF',
-      accent: '#FF10F0',
-      background: '#020018',
-      backgroundSecondary: '#080830',
-      card: 'rgba(0, 200, 255, 0.06)',
-      cardElevated: 'rgba(0, 200, 255, 0.12)',
-      text: '#F0F8FF',
-      textMuted: '#00C8FF',
-      textSubtle: '#0088AA',
-      glow: 'rgba(0, 200, 255, 0.35)',
-      glowStrong: 'rgba(0, 200, 255, 0.6)',
-      border: 'rgba(0, 200, 255, 0.5)',
-      borderSubtle: 'rgba(0, 200, 255, 0.25)',
-      success: '#00FF88',
-      warning: '#FFD000',
-      error: '#FF10F0',
+      primary: '#020021',
+      secondary: '#00AEFF',
+      accent: '#FC0FF5',
+      background: '#020021',
+      card: 'rgba(0, 174, 255, 0.05)',
+      text: '#FFFFFF',
+      textMuted: '#00AEFF',
+      glow: 'rgba(0, 174, 255, 0.4)', 
+      border: 'rgba(0, 174, 255, 0.6)',
       phases: {
-        MENSTRUAL: '#FF10F0',
-        FOLLICULAR: '#00C8FF',
-        OVULATION: '#00FF88',
-        LUTEAL: '#1A1850'
-      },
-      shadows: {
-        small: 'rgba(0, 0, 0, 0.3)',
-        medium: 'rgba(0, 0, 0, 0.5)',
-        large: 'rgba(0, 0, 0, 0.7)',
-        glow: 'rgba(0, 200, 255, 0.5)'
+        MENSTRUAL: '#FC0FF5',
+        FOLLICULAR: '#00AEFF',
+        OVULATION: '#39FF14',
+        LUTEAL: '#1A1A40'
       }
     },
     typography: { 
-      titleFont: 'OpenSans-Bold',
-      boldFont: 'OpenSans-Bold',
-      bodyFont: 'OpenSans-Regular'
+      titleFont: 'OpenSans-Bold', 
+      bodyFont: 'OpenSans-Regular',
+      boldFont: 'OpenSans-Bold'
     },
     visuals: {
-      hudName: 'CORE-HUD',
-      emojiSet: { status: '🤖', mission: '📡', rec: '💾' },
-      hasGlowEffect: true,
-      material: { blurIntensity: 40, progressType: 'segmented', animationStyle: 'aura' }
+      hudName: 'HUD DE ESTADO',
+      emojiSet: {
+        mission: '💻',
+        rec: '🤖',
+        status: '⚡',
+        phase: '💀'
+      },
+      tabIcons: {
+        centro: 'grid',
+        chat: 'terminal',
+        calendar: 'pulse',
+        profile: 'hardware-chip'
+      },
+      material: {
+        blurIntensity: 5,
+        glowSpread: 8,
+        animationStyle: 'flicker',
+        progressStyle: 'segmented'
+      },
+      hasGlowEffect: false,
+      compassType: 'cyber',
+      goldGradient: ['#00AEFF', '#00FBFF', '#0044FF'] as const
     }
   }
 };
