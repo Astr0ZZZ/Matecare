@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { View, ActivityIndicator, Text } from 'react-native';
+import { apiFetch } from '../services/api';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,23 +14,64 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const { theme, isLoaded } = useTheme();
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  // Resetear estados al cerrar sesión
+  useEffect(() => {
+    if (!session) {
+      setProfileLoaded(false);
+      setNeedsOnboarding(false);
+    }
+  }, [session]);
 
   useEffect(() => {
     if (loading || !isLoaded) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    // Si hay sesión pero no hemos verificado el perfil, lo hacemos
+    if (session && !profileLoaded) {
+      apiFetch('/profile')
+        .then(() => {
+          setNeedsOnboarding(false);
+          setProfileLoaded(true);
+        })
+        .catch((err) => {
+          console.log('[AuthGuard] Perfil no encontrado o error:', err.message);
+          setNeedsOnboarding(true);
+          setProfileLoaded(true);
+        });
+      return;
+    }
 
+    const inAuthGroup = segments[0] === '(auth)';
+    const inOnboardingGroup = segments[0] === '(onboarding)';
+
+    // Caso 1: No hay sesión y no estamos en auth -> Ir a login
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
-      router.replace('/(tabs)');
+    } 
+    // Caso 2: Hay sesión y ya verificamos el perfil
+    else if (session && profileLoaded) {
+      if (needsOnboarding && !inOnboardingGroup) {
+        // Logueado pero sin perfil -> Onboarding
+        router.replace('/(onboarding)/cycle-setup');
+      } else if (!needsOnboarding && (inAuthGroup || inOnboardingGroup)) {
+        // Logueado con perfil -> Dashboard (si está en login u onboarding)
+        router.replace('/(tabs)');
+      }
     }
-  }, [session, loading, segments, isLoaded]);
+  }, [session, loading, segments, isLoaded, profileLoaded, needsOnboarding]);
 
   const inAuthGroup = segments[0] === '(auth)';
-  const isWrongRoute = (session && inAuthGroup) || (!session && !inAuthGroup);
+  const inOnboardingGroup = segments[0] === '(onboarding)';
+  const isTransitioning = session && !profileLoaded;
+  
+  // Bloqueo visual durante la verificación
+  const isWrongRoute = (!session && !inAuthGroup) || 
+                       (session && profileLoaded && needsOnboarding && !inOnboardingGroup) ||
+                       (session && profileLoaded && !needsOnboarding && (inAuthGroup || inOnboardingGroup));
 
-  if (loading || !isLoaded || isWrongRoute) {
+  if (loading || !isLoaded || isTransitioning || isWrongRoute) {
     return (
       <View style={{ flex: 1, backgroundColor: isLoaded ? theme.colors.background : '#000', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={isLoaded ? theme.colors.accent : '#FFF'} />
