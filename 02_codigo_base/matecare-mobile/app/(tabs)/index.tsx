@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [userPoints, setUserPoints] = useState(0);
   const [resetTimer, setResetTimer] = useState<number | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -44,6 +45,7 @@ export default function Dashboard() {
       try {
         const summary = await apiFetch(`/dashboard/summary/${currentUserId}`);
         console.log('[DASHBOARD] Summary received:', JSON.stringify(summary).substring(0, 500));
+        setSummary(summary);
         
         if (summary.profile) {
           setUserPoints(summary.profile.points || 0);
