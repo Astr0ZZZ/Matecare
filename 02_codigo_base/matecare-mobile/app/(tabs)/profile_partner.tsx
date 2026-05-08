@@ -48,17 +48,27 @@ export default function PartnerDetails() {
           {/* Vision Calibration Info */}
           <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.cardTitle, { color: theme.colors.accent }]}>RASGOS DETECTADOS (VISIÓN)</Text>
+            
+            <View style={styles.traitRow}>
+              <Ionicons name="happy" size={16} color={theme.colors.accent} />
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Última Emoción: {prefs.dominantEmotion || 'Neutral'}</Text>
+            </View>
+
             <View style={styles.traitRow}>
               <Ionicons name="shirt" size={16} color={theme.colors.accent} />
-              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Estilo: {prefs.detectedStyle || 'No calibrado'}</Text>
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Estilo: {prefs.style || 'No calibrado'}</Text>
             </View>
-            <View style={styles.traitRow}>
-              <Ionicons name="color-palette" size={16} color={theme.colors.accent} />
-              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Tono preferido: {prefs.clothingTone || 'No calibrado'}</Text>
-            </View>
+
             <View style={styles.traitRow}>
               <Ionicons name="calendar" size={16} color={theme.colors.accent} />
               <Text style={[styles.bodyText, { color: theme.colors.text }]}>Edad estimada: {prefs.estimatedAge || 'N/A'}</Text>
+            </View>
+
+            <View style={styles.traitRow}>
+              <Ionicons name="time" size={16} color={theme.colors.textMuted} />
+              <Text style={[styles.bodyText, { color: theme.colors.textMuted, fontSize: 10 }]}>
+                Sincronizado: {prefs.lastCalibration ? new Date(prefs.lastCalibration).toLocaleDateString() : 'Nunca'}
+              </Text>
             </View>
           </View>
 

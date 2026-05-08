@@ -1,8 +1,7 @@
 /**
- * VisionScan.tsx - Premium Edition
+ * VisionScan.tsx - Premium Unified Edition
  * 
- * Pantalla de lectura visual avanzada v2.0.
- * Utiliza el sistema de temas dinámico y apiFetch centralizado.
+ * Flujo unificado: Toma foto -> Analiza Emoción + Calibra Perfil.
  */
 
 import React, { useState } from 'react';
@@ -29,7 +28,7 @@ import { useToast } from '../../context/ToastContext';
 
 const { width } = Dimensions.get('window');
 
-// ─── Hook de Interacción ───────────────────────────────────────────────────
+// ─── Hook de Interacción Unificada ──────────────────────────────────────────
 
 export function useVisionChat() {
   const { showError } = useToast();
@@ -38,60 +37,38 @@ export function useVisionChat() {
     response: string;
     emotionDetected: string;
     bodyLanguage?: string;
-    sceneCategory?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const analyzePhoto = async (imageUri: string, userMessage?: string) => {
+  const processPhoto = async (imageUri: string) => {
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      // Convertir URI → base64 usando FileSystem (RN compatible)
-      const base64 = await FileSystem.readAsStringAsync(imageUri, { 
-        encoding: 'base64' 
-      });
-      const base64Data = `data:image/jpeg;base64,${base64}`;
-
-      // Llamar al backend usando apiFetch centralizado
-      const data = await apiFetch('/ai/vision-chat', {
+      const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' });
+      
+      // 1. Calibración atómica
+      const data = await apiFetch('/ai/calibrate-profile', {
         method: 'POST',
-        body: JSON.stringify({ image: base64Data, userMessage }),
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      // 2. Análisis táctico
+      const chatData = await apiFetch('/ai/vision-chat', {
+        method: 'POST',
+        body: JSON.stringify({ image: `data:image/jpeg;base64,${base64}` }),
       });
 
       setResult({
-        response: data.response,
-        emotionDetected: data.emotionDetected,
-        bodyLanguage: data.bodyLanguage,
-        sceneCategory: data.sceneCategory
+        response: chatData.response,
+        emotionDetected: chatData.emotionDetected || data.traits?.dominantEmotion || "Neutral",
+        bodyLanguage: chatData.bodyLanguage,
       });
+
     } catch (e: any) {
-      setError(e.message || "Error en el análisis");
-      showError("Falla en el escaneo visual táctico.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calibrateProfile = async (imageUri: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const base64 = await FileSystem.readAsStringAsync(imageUri, { 
-        encoding: 'base64' 
-      });
-      const base64Data = `data:image/jpeg;base64,${base64}`;
-
-      const data = await apiFetch('/ai/calibrate-profile', {
-        method: 'POST',
-        body: JSON.stringify({ image: base64Data }),
-      });
-
-      Alert.alert("Calibración Exitosa", `Se ha detectado un estilo "${data.traits.detectedStyle}" y una edad estimada de ${data.traits.estimatedAge} años.`);
-    } catch (e: any) {
-      setError(e.message || "Error en la calibración");
-      showError("Error crítico de calibración visual.");
+      setError(e.message || "Error en el procesamiento");
+      showError("Falla en la sincronización táctica.");
     } finally {
       setLoading(false);
     }
@@ -102,17 +79,15 @@ export function useVisionChat() {
     setError(null);
   };
 
-  return { analyzePhoto, calibrateProfile, loading, result, error, reset };
+  return { processPhoto, loading, result, error, reset };
 }
-
-// ─── Componente Principal ───────────────────────────────────────────────────
 
 export default function VisionScanScreen() {
   const { theme } = useTheme();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const { analyzePhoto, calibrateProfile, loading, result, error, reset } = useVisionChat();
+  const { processPhoto, loading, result, error, reset } = useVisionChat();
 
-  const handleCapture = async (source: 'camera' | 'library', mode: 'chat' | 'calibrate' = 'chat') => {
+  const handleCapture = async (source: 'camera' | 'library') => {
     const permission = source === 'camera' 
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -122,38 +97,24 @@ export default function VisionScanScreen() {
       return;
     }
 
-    const options: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'], // Nuevo estándar SDK 54
-      allowsEditing: true,
-      aspect: [4, 4],
-      quality: 0.6,
-    };
-
     const picked = source === 'camera' 
-      ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.6 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.6 });
 
     if (!picked.canceled && picked.assets[0]) {
       let uri = picked.assets[0].uri;
 
-      // Optimización: Redimensionar a max 1000px de ancho para ahorrar ancho de banda y memoria
+      // Optimización 1000px
       try {
         const manipulated = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: 1000 } }],
+          uri, [{ resize: { width: 1000 } }],
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
         uri = manipulated.uri;
-      } catch (manipError) {
-        console.warn("Error optimizando imagen, enviando original:", manipError);
-      }
+      } catch (e) {}
 
       setSelectedImage(uri);
-      if (mode === 'calibrate') {
-        calibrateProfile(uri);
-      } else {
-        analyzePhoto(uri);
-      }
+      processPhoto(uri);
     }
   };
 
@@ -169,14 +130,13 @@ export default function VisionScanScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.accent, fontFamily: theme.typography.titleFont }]}>
-            LECTURA VISUAL
+            LECTURA TÁCTICA
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textMuted, fontFamily: theme.typography.bodyFont }]}>
-            Cruza la fase biológica con el lenguaje corporal en tiempo real.
+            Sincroniza el perfil visual de tu pareja con la inteligencia de MateCare.
           </Text>
         </View>
 
-        {/* Preview o Selector */}
         <View style={styles.previewContainer}>
           {selectedImage ? (
             <View style={styles.imageWrapper}>
@@ -185,7 +145,7 @@ export default function VisionScanScreen() {
                 <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark">
                   <View style={styles.loadingOverlay}>
                     <ActivityIndicator size="large" color={theme.colors.accent} />
-                    <Text style={[styles.loadingText, { color: theme.colors.text }]}>Sincronizando capas...</Text>
+                    <Text style={[styles.loadingText, { color: theme.colors.text }]}>Calibrando Perfil...</Text>
                   </View>
                 </BlurView>
               )}
@@ -194,18 +154,17 @@ export default function VisionScanScreen() {
             <View style={[styles.placeholder, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
               <Ionicons name="scan-outline" size={60} color={theme.colors.border} />
               <Text style={[styles.placeholderText, { color: theme.colors.textMuted }]}>
-                No hay captura activa
+                Esperando captura
               </Text>
             </View>
           )}
         </View>
 
-        {/* Botones de acción */}
         {!loading && !result && (
           <View style={styles.actionRow}>
             <TouchableOpacity 
               style={[styles.mainBtn, { backgroundColor: theme.colors.accent }]} 
-              onPress={() => handleCapture('camera', 'chat')}
+              onPress={() => handleCapture('camera')}
             >
               <Ionicons name="camera" size={20} color={theme.colors.background} />
               <Text style={[styles.btnText, { color: theme.colors.background }]}>Cámara</Text>
@@ -213,7 +172,7 @@ export default function VisionScanScreen() {
 
             <TouchableOpacity 
               style={[styles.secondaryBtn, { borderColor: theme.colors.accent }]} 
-              onPress={() => handleCapture('library', 'chat')}
+              onPress={() => handleCapture('library')}
             >
               <Ionicons name="images" size={20} color={theme.colors.accent} />
               <Text style={[styles.btnText, { color: theme.colors.accent }]}>Galería</Text>
@@ -221,19 +180,6 @@ export default function VisionScanScreen() {
           </View>
         )}
 
-        {!loading && !result && (
-          <TouchableOpacity 
-            style={[styles.calibrateLink, { marginTop: 16 }]} 
-            onPress={() => handleCapture('library', 'calibrate')}
-          >
-            <Ionicons name="options-outline" size={16} color={theme.colors.textMuted} />
-            <Text style={[styles.calibrateText, { color: theme.colors.textMuted }]}>
-              CALIBRAR GUSTOS Y ESTILO BASE
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Error */}
         {error && (
           <View style={styles.errorBox}>
             <Ionicons name="warning-outline" size={24} color="#FF4444" />
@@ -241,7 +187,6 @@ export default function VisionScanScreen() {
           </View>
         )}
 
-        {/* Resultado Premium */}
         {result && (
           <View style={[styles.resultCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.tagsRow}>
@@ -250,13 +195,6 @@ export default function VisionScanScreen() {
                   {result.emotionDetected.toUpperCase()}
                 </Text>
               </View>
-              {result.bodyLanguage && (
-                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-                  <Text style={[styles.tagText, { color: theme.colors.text }]}>
-                    {result.bodyLanguage.replace('_', ' ').toUpperCase()}
-                  </Text>
-                </View>
-              )}
             </View>
 
             <Text style={[styles.responseText, { color: theme.colors.text, fontFamily: theme.typography.bodyFont }]}>
@@ -265,10 +203,7 @@ export default function VisionScanScreen() {
 
             <TouchableOpacity 
               style={styles.resetBtn} 
-              onPress={() => {
-                setSelectedImage(null);
-                reset();
-              }}
+              onPress={() => { setSelectedImage(null); reset(); }}
             >
               <Text style={[styles.resetText, { color: theme.colors.textMuted }]}>NUEVA LECTURA</Text>
             </TouchableOpacity>
@@ -280,30 +215,11 @@ export default function VisionScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 24,
-    paddingTop: 60,
-    alignItems: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 20,
-  },
+  container: { flex: 1 },
+  scrollContent: { padding: 24, paddingTop: 60, alignItems: 'center' },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: 3, marginBottom: 8 },
+  subtitle: { fontSize: 13, textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 },
   previewContainer: {
     width: width - 48,
     height: width - 48,
@@ -316,14 +232,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 15,
   },
-  imageWrapper: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-  },
+  imageWrapper: { width: '100%', height: '100%' },
+  imagePreview: { width: '100%', height: '100%' },
   placeholder: {
     width: '100%',
     height: '100%',
@@ -333,109 +243,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  mainBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-    elevation: 4,
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  btnText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-    marginTop: 20,
-  },
-  errorText: {
-    color: '#FF4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  resultCard: {
-    width: '100%',
-    padding: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  responseText: {
-    fontSize: 17,
-    lineHeight: 26,
-    marginBottom: 24,
-  },
-  resetBtn: {
-    alignSelf: 'center',
-    padding: 12,
-  },
-  resetText: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  calibrateLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 8,
-  },
-  calibrateText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-  }
+  placeholderText: { marginTop: 12, fontSize: 14, fontWeight: '600' },
+  loadingOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { fontSize: 14, fontWeight: '600', letterSpacing: 1 },
+  actionRow: { flexDirection: 'row', gap: 16 },
+  mainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16, gap: 8 },
+  secondaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16, borderWidth: 1.5, gap: 8 },
+  btnText: { fontSize: 16, fontWeight: '700' },
+  errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 68, 68, 0.1)', padding: 16, borderRadius: 12, gap: 12, marginTop: 20 },
+  errorText: { color: '#FF4444', fontSize: 14, fontWeight: '600' },
+  resultCard: { width: '100%', padding: 24, borderRadius: 24, borderWidth: 1, marginTop: 8 },
+  tagsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  tagText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  responseText: { fontSize: 17, lineHeight: 26, marginBottom: 24 },
+  resetBtn: { alignSelf: 'center', padding: 12 },
+  resetText: { fontSize: 12, fontWeight: '800', letterSpacing: 2 }
 });
