@@ -12,12 +12,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Dashboard() {
   const router = useRouter();
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { showError } = useToast();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,6 +69,7 @@ export default function Dashboard() {
         console.log(`[Dashboard] Petición ${isPolling ? 'de polling ' : ''}cancelada o timeout. Reintentando en el próximo ciclo.`);
       } else {
         console.error("[Dashboard] Error cargando resumen:", error);
+        showError("Falla en sincronización de datos tácticos.");
       }
     } finally {
       if (!isPolling) setLoading(false);
@@ -99,6 +102,7 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error("Error actualizando misión:", e);
+      showError("Error al reportar avance de misión.");
     }
   };
 
@@ -113,6 +117,7 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error("Error en reset:", e);
+      showError("No se pudo re-calibrar la lista de edictos.");
     }
   };
 

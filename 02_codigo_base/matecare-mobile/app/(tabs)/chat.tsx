@@ -8,10 +8,12 @@ import { useAIChat } from '../../hooks/useAIChat';
 import { apiFetch } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Chat() {
   const { mensajes, enviarMensaje, cargando } = useAIChat();
+  const { showError } = useToast();
   const [inputText, setInputText] = useState('');
   const [faseActual, setFaseActual] = useState('DESCONOCIDA');
   const { theme } = useTheme();
@@ -66,6 +68,7 @@ export default function Chat() {
           return;
         }
         console.error("Error cargando fase para chat:", error);
+        showError("No se pudo sincronizar la fase del ciclo.");
       }
     };
     fetchPhase();

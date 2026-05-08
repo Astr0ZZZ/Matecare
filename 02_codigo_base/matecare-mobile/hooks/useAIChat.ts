@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useToast } from '../context/ToastContext';
 
 export interface Message {
   id: string;
@@ -12,6 +13,7 @@ export interface Message {
 const STORAGE_KEY = '@matecare_chat_history';
 
 export const useAIChat = () => {
+  const { showError } = useToast();
   const [mensajes, setMensajes] = useState<Message[]>([]);
   const [cargando, setCargando] = useState(false);
 
@@ -79,6 +81,7 @@ export const useAIChat = () => {
       ]);
     } catch (error) {
       console.error(error);
+      showError("Se perdió el enlace con el Oráculo AI.");
       setMensajes((prev) => [
         ...prev, 
         { 

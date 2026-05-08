@@ -27,6 +27,7 @@ import missionRoutes from './routes/missions.routes'
 import aiRoutes from './routes/ai.routes'
 import dashboardRoutes from './routes/dashboard.routes'
 import notificationRoutes from './routes/notifications.routes'
+import { initNotificationScheduler } from './services/notificationScheduler.service'
 
 // Registro de rutas
 app.use('/api/profile', profileRoutes);
@@ -46,6 +47,9 @@ app.use((req, res) => {
   });
 });
 
-app.listen(Number(PORT), '0.0.0.0', () => console.log(`MateCare backend running on 0.0.0.0:${PORT}`));
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`MateCare backend running on 0.0.0.0:${PORT}`);
+  initNotificationScheduler();
+});
 
 export default app

@@ -26,6 +26,7 @@ export type InsightContext =
   | 'sorpresa_detalle'
   | 'comunicacion_importante'
   | 'dia_dificil'
+  | 'plan_tactic_diario'
 
 // Respuestas completas del quiz
 export interface QuizAnswers {

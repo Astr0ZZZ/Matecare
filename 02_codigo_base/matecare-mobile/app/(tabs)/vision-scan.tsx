@@ -25,12 +25,14 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 
 const { width } = Dimensions.get('window');
 
 // ─── Hook de Interacción ───────────────────────────────────────────────────
 
 export function useVisionChat() {
+  const { showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     response: string;
@@ -66,6 +68,7 @@ export function useVisionChat() {
       });
     } catch (e: any) {
       setError(e.message || "Error en el análisis");
+      showError("Falla en el escaneo visual táctico.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +91,7 @@ export function useVisionChat() {
       Alert.alert("Calibración Exitosa", `Se ha detectado un estilo "${data.traits.detectedStyle}" y una edad estimada de ${data.traits.estimatedAge} años.`);
     } catch (e: any) {
       setError(e.message || "Error en la calibración");
+      showError("Error crítico de calibración visual.");
     } finally {
       setLoading(false);
     }

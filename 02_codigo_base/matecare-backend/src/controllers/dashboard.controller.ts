@@ -6,7 +6,7 @@ import { getInsight } from '../services/insightCache.service';
 import { buildMessages } from '../services/promptEngine.service';
 import { routeToAI, detectTier, determineTier } from '../services/aiRouter.service';
 import { generarMisionesTactica } from '../services/aiClient.service';
-import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
+import type { MBTIType, AttachmentStyle, InsightContext } from '../../../shared/types/personality.types';
 import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
 
 const memoryCache: Record<string, string> = {};
@@ -78,7 +78,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       recommendation = await getInsight({
         mbtiType: (personalityProfile?.mbtiType as MBTIType) || 'INTJ',
         phase: cycle.phase as CyclePhase,
-        context: 'plan_romantico' as any, // Contexto diario táctico
+        context: 'plan_tactic_diario' as any, // Contexto diario táctico
         affectionStyle: profile.affectionStyle as AffectionStyle,
         conflictStyle: profile.conflictStyle as ConflictStyle,
         attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
