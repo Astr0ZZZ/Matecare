@@ -36,6 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentSession?.user ?? null);
       setLoading(false);
       console.log('[AuthContext] Cambio detectado:', _event, !!currentSession);
+      
+      if (currentSession) {
+        import('../services/notifications').then(m => m.registerPushToken());
+      }
     });
 
     return () => subscription.unsubscribe();

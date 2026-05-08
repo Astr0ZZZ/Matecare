@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Message {
   id: string;
@@ -8,9 +9,40 @@ export interface Message {
   timestamp: number;
 }
 
+const STORAGE_KEY = '@matecare_chat_history';
+
 export const useAIChat = () => {
   const [mensajes, setMensajes] = useState<Message[]>([]);
   const [cargando, setCargando] = useState(false);
+
+  // Cargar historial al iniciar
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setMensajes(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error("Error al cargar historial:", e);
+      }
+    };
+    loadHistory();
+  }, []);
+
+  // Guardar historial cuando cambie
+  useEffect(() => {
+    const saveHistory = async () => {
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mensajes));
+      } catch (e) {
+        console.error("Error al guardar historial:", e);
+      }
+    };
+    if (mensajes.length > 0) {
+      saveHistory();
+    }
+  }, [mensajes]);
 
   const enviarMensaje = async (texto: string, faseActual: string) => {
     const nuevoMensaje: Message = { 
@@ -29,7 +61,7 @@ export const useAIChat = () => {
         body: JSON.stringify({ 
           mensaje: texto, 
           faseActual: faseActual,
-          history: mensajes.map(m => ({
+          history: mensajes.slice(-10).map(m => ({ // Enviar solo últimos 10 para contexto
             role: m.emisor === 'usuario' ? 'user' : 'assistant',
             content: m.text
           }))
@@ -61,5 +93,10 @@ export const useAIChat = () => {
     }
   };
 
-  return { mensajes, enviarMensaje, cargando };
+  const limpiarHistorial = async () => {
+    setMensajes([]);
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  };
+
+  return { mensajes, enviarMensaje, cargando, limpiarHistorial };
 };

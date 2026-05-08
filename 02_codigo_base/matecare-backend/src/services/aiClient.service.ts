@@ -109,7 +109,7 @@ function normalizeHistory(rawMessages: any[]) {
 // ==========================================
 // 1. askAI
 // ==========================================
-export async function askAI(messages: any[]) {
+export async function askAI(messages: any[], tier: string = 'standard') {
   try {
     const systemPrompt = messages.find(m => m.role === 'system')?.content || "";
     const rawContents = messages.filter(m => m.role !== 'system');
@@ -120,9 +120,14 @@ export async function askAI(messages: any[]) {
       contents.push({ role: 'user', parts: [{ text: 'Dame el consejo del día.' }] });
     }
 
+    // Mapeo de Tier a Nivel de Pensamiento (ThinkingLevel) de Gemini 2026
+    let thinkingLevel = ThinkingLevel.LOW;
+    if (tier === 'premium') thinkingLevel = ThinkingLevel.HIGH;
+    if (tier === 'standard') thinkingLevel = ThinkingLevel.MEDIUM;
+
     // Preparamos la configuración condicionalmente para no enviar un systemInstruction vacío
     const config: any = {
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      thinkingConfig: { thinkingLevel }
     };
     if (systemPrompt.trim() !== "") {
       config.systemInstruction = systemPrompt;

@@ -115,16 +115,16 @@ export default function Profile() {
             
             <TouchableOpacity 
               style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
-              onPress={() => router.push('/profile_partner')}
+              onPress={() => router.push('/(tabs)/profile_partner')}
             >
               <Ionicons name="person-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
               <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Detalles de Personalidad</Text>
               <Ionicons name="chevron-forward" size={16} color={theme?.colors?.border || 'rgba(255,255,255,0.1)'} />
             </TouchableOpacity>
-
+ 
             <TouchableOpacity 
               style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
-              onPress={() => router.push('/profile_cycle')}
+              onPress={() => router.push('/(tabs)/profile_cycle')}
             >
               <Ionicons name="stats-chart-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
               <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Métricas del Ciclo</Text>

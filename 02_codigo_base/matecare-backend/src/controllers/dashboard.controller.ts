@@ -72,18 +72,31 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       });
     }
 
-    // 3. Fetch Recommendation
-    let recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
-    if (!recommendation) {
-      const dbRec = await prisma.personalityInsight.findUnique({ where: { cacheKey: dailyCacheKey } });
-      if (dbRec) recommendation = dbRec.insight;
+    // 3. Fetch Recommendation using Insight Engine
+    let recommendation: string | null = null;
+    try {
+      recommendation = await getInsight({
+        mbtiType: (personalityProfile?.mbtiType as MBTIType) || 'INTJ',
+        phase: cycle.phase as CyclePhase,
+        context: 'plan_romantico' as any, // Contexto diario táctico
+        affectionStyle: profile.affectionStyle as AffectionStyle,
+        conflictStyle: profile.conflictStyle as ConflictStyle,
+        attachmentStyle: (personalityProfile?.attachmentStyle as AttachmentStyle) || 'SECURE',
+        preferences: (personalityProfile?.preferences as any) || {},
+      });
+    } catch (e) {
+      console.warn("[DASHBOARD] getInsight failed, using local/memory fallback:", e);
+      recommendation = isRedisConnected ? await redis.get(dailyCacheKey) : memoryCache[dailyCacheKey];
+      if (!recommendation) {
+        const dbRec = await prisma.personalityInsight.findUnique({ where: { cacheKey: dailyCacheKey } });
+        if (dbRec) recommendation = dbRec.insight;
+      }
     }
 
-    // 4. Background Task
+    // 4. Background Task (solo para misiones, la recomendación ya la maneja getInsight)
     const needsMissions = missions.length === 0;
-    const needsRec = !recommendation;
 
-    if (needsMissions || needsRec) {
+    if (needsMissions) {
       (async () => {
         try {
           const tasks = [];
@@ -110,40 +123,6 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
             })());
           }
 
-          if (needsRec) {
-            tasks.push((async () => {
-              const userTier = await determineTier(userId);
-              const messages = buildMessages({
-                phase: cycle.phase, dayOfCycle: cycle.dayOfCycle,
-                daysUntilNextPhase: cycle.daysUntilNextPhase,
-                personalityType: profile.personalityType || 'AMBIVERT', 
-                socialLevel: profile.socialLevel || 'MEDIUM',
-                privacyLevel: profile.privacyLevel || 'MEDIUM', 
-                conflictStyle: profile.conflictStyle || 'CALM',
-                affectionStyle: profile.affectionStyle || 'QUALITY',
-                mbtiType: personalityProfile?.mbtiType as any,
-                attachmentStyle: (personalityProfile?.attachmentStyle as any) || 'SECURE',
-                preferences: (personalityProfile?.preferences as any) || {},
-                userTier
-              });
-              
-              // Inyectar restricción de longitud en el último mensaje
-              messages[messages.length-1].content += ". Responde en un solo párrafo de máximo 60 palabras.";
-
-              const generated = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), 'standard');
-              
-              if (generated) {
-                memoryCache[dailyCacheKey] = generated;
-                if (isRedisConnected) await redis.set(dailyCacheKey, generated, { EX: 82800 });
-                await prisma.personalityInsight.upsert({
-                  where: { cacheKey: dailyCacheKey },
-                  update: { insight: generated, expiresAt: new Date(Date.now() + 86400000) },
-                  create: { cacheKey: dailyCacheKey, insight: generated, expiresAt: new Date(Date.now() + 86400000) }
-                });
-              }
-            })());
-          }
-
           await Promise.all(tasks);
         } catch (err) {
           console.error('[DASHBOARD] BG task failed:', err);
@@ -153,12 +132,17 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
 
     return res.json({
       profile: { ...profile, points: user?.points || 0, mbti: personalityProfile || null },
-      cycle: { ...cycle, phase: cycle.phase.toUpperCase() },
+      cycle: { 
+        ...cycle, 
+        phase: cycle.phase.toUpperCase(),
+        totalLength: profile.cycleLength,
+        periodDuration: profile.periodDuration
+      },
       missions: missions.length > 0 ? missions : FALLBACK_MISSIONS[cycle.phase.toUpperCase()] || FALLBACK_MISSIONS.MENSTRUAL,
       recommendation: {
         text: recommendation || "Sincronizando tácticas...",
         fromCache: !!recommendation,
-        isGenerating: needsRec
+        isGenerating: false
       }
     });
 

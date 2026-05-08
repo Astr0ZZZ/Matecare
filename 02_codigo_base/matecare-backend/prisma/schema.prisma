@@ -16,6 +16,7 @@ model User {
   
   // Gamificación
   points        Int       @default(0)
+  pushToken     String?
   
   createdAt     DateTime  @default(now())
 

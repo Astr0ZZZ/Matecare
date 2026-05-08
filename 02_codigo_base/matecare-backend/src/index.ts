@@ -26,6 +26,7 @@ import cycleRoutes from './routes/cycle.routes'
 import missionRoutes from './routes/missions.routes'
 import aiRoutes from './routes/ai.routes'
 import dashboardRoutes from './routes/dashboard.routes'
+import notificationRoutes from './routes/notifications.routes'
 
 // Registro de rutas
 app.use('/api/profile', profileRoutes);
@@ -33,6 +34,7 @@ app.use('/api/cycle', cycleRoutes);
 app.use('/api/missions', missionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Catch-all para 404s con logging detallado
 app.use((req, res) => {

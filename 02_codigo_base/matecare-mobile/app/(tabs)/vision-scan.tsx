@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,20 +46,16 @@ export function useVisionChat() {
     setResult(null);
 
     try {
-      // Convertir URI → base64
-      const fileRes = await fetch(imageUri);
-      const blob = await fileRes.blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+      // Convertir URI → base64 usando FileSystem (RN compatible)
+      const base64 = await FileSystem.readAsStringAsync(imageUri, { 
+        encoding: 'base64' 
       });
+      const base64Data = `data:image/jpeg;base64,${base64}`;
 
       // Llamar al backend usando apiFetch centralizado
       const data = await apiFetch('/ai/vision-chat', {
         method: 'POST',
-        body: JSON.stringify({ image: base64, userMessage }),
+        body: JSON.stringify({ image: base64Data, userMessage }),
       });
 
       setResult({
@@ -78,18 +75,14 @@ export function useVisionChat() {
     setLoading(true);
     setError(null);
     try {
-      const fileRes = await fetch(imageUri);
-      const blob = await fileRes.blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+      const base64 = await FileSystem.readAsStringAsync(imageUri, { 
+        encoding: 'base64' 
       });
+      const base64Data = `data:image/jpeg;base64,${base64}`;
 
       const data = await apiFetch('/ai/calibrate-profile', {
         method: 'POST',
-        body: JSON.stringify({ image: base64 }),
+        body: JSON.stringify({ image: base64Data }),
       });
 
       Alert.alert("Calibración Exitosa", `Se ha detectado un estilo "${data.traits.detectedStyle}" y una edad estimada de ${data.traits.estimatedAge} años.`);

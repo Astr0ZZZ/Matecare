@@ -33,7 +33,7 @@ export function detectTier(userInput?: string): AITier {
 export async function routeToAI(
   systemPrompt: string,
   messages: { role: 'user' | 'assistant'; content: string }[],
-  _tier: AITier // Ignoramos el tier por ahora para usar la cadena de fallback unificada
+  tier: AITier
 ): Promise<string> {
   try {
     const formattedMessages = [
@@ -41,7 +41,7 @@ export async function routeToAI(
       ...messages
     ];
 
-    return await askAI(formattedMessages);
+    return await askAI(formattedMessages, tier);
   } catch (err: any) {
     console.error(`[AIRouter] Error fatal: ${err.message}`);
     return "Lo más importante hoy es la presencia tranquila y la escucha activa.";
