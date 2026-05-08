@@ -64,10 +64,40 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     });
 
     const finalUserMessage = userMessage?.trim() || "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
-    const messages = [{ role: "user" as const, content: finalUserMessage }];
+    const messages = [{ 
+      role: "user" as const, 
+      content: finalUserMessage,
+      image: image // Pasamos la imagen base64 para análisis multimodal profundo
+    }];
 
     const tier = detectTier(finalUserMessage);
-    const aiResponse = await routeToAI(systemPrompt, messages, tier);
+    let aiResponse = await routeToAI(systemPrompt, messages, tier);
+
+    // EXTRACCIÓN DE METADATOS: Buscamos el tag [ENTORNO: ..., ESTILO: ...]
+    const sceneMatch = aiResponse.match(/\[ENTORNO:\s*(.*?),\s*ESTILO:\s*(.*?)\]/i);
+    if (sceneMatch) {
+      vision.environment = sceneMatch[1].trim();
+      vision.style = sceneMatch[2].trim();
+      // Limpiamos la respuesta para el usuario
+      aiResponse = aiResponse.replace(/\[ENTORNO:.*?\].*?\n?/i, "").trim();
+    }
+
+    // PERSISTENCIA TÁCTICA: Guardamos el contexto detectado por la IA de visión para el Dashboard
+    try {
+      await prisma.personalityProfile.update({
+        where: { userId },
+        data: {
+          preferences: {
+            ...(personalityProfile?.preferences as any || {}),
+            ...vision,
+            lastDeepAnalysis: new Date().toISOString(),
+          }
+        }
+      });
+      console.log(`[VISION] Contexto táctico persistido (${vision.environment}) para usuario ${userId}`);
+    } catch (persistError) {
+      console.warn("[VISION] No se pudo persistir el contexto profundo, continuando...");
+    }
 
     return res.json({
       response: aiResponse,

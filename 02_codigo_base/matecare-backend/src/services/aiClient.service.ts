@@ -26,10 +26,22 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
         }
 
         // Convertir formato Gemini -> OpenAI
-        const messages: any[] = params.contents.map(c => ({
-          role: c.role === 'model' ? 'assistant' : 'user',
-          content: c.parts[0].text
-        }));
+        const messages: any[] = params.contents.map(c => {
+          const content: any[] = [];
+          for (const p of c.parts) {
+            if (p.text) content.push({ type: 'text', text: p.text });
+            if (p.inline_data) {
+              content.push({ 
+                type: 'image_url', 
+                image_url: { url: `data:${p.inline_data.mime_type};base64,${p.inline_data.data}` } 
+              });
+            }
+          }
+          return {
+            role: c.role === 'model' ? 'assistant' : 'user',
+            content
+          };
+        });
 
         if (params.config.systemInstruction) {
           messages.unshift({ role: 'system', content: params.config.systemInstruction });
@@ -38,13 +50,13 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
         const response = await openai.chat.completions.create({
           model,
           messages: messages,
-          max_tokens: 800,
-          temperature: 0.7
-        }, { timeout: 15000 }); // 15s timeout interno para saltar al siguiente modelo si este falla
+          max_tokens: 1000,
+          temperature: 0.5
+        }, { timeout: 25000 }); // Más tiempo para visión
 
         const content = response.choices[0]?.message?.content;
         if (content && content.trim() !== "") {
-          console.log(`[AI] Éxito con ${model}`);
+          console.log(`[AI] Éxito con ${model} (Vision)`);
           return content;
         }
         console.warn(`[AI] ${model} devolvió contenido vacío`);
@@ -57,7 +69,7 @@ async function generateWithFallback(params: { contents: any[]; config: any }): P
         : params.config;
 
       const response = await client.models.generateContent({
-        model,
+        model: model.includes('vision') ? 'gemini-2.0-flash-exp' : model, // Forzar flash para visión si es necesario
         contents: params.contents,
         config: cleanConfig
       });
@@ -114,7 +126,25 @@ export async function askAI(messages: any[], tier: string = 'standard') {
     const systemPrompt = messages.find(m => m.role === 'system')?.content || "";
     const rawContents = messages.filter(m => m.role !== 'system');
 
-    const contents = normalizeHistory(rawContents);
+    const contents = rawContents.map(m => {
+      const parts: any[] = [{ text: m.content || "" }];
+      if (m.image) {
+        // Extraer base64 puro del data-uri
+        const base64Data = m.image.includes(',') ? m.image.split(',')[1] : m.image;
+        const mimeType = m.image.includes(';') ? m.image.split(';')[0].split(':')[1] : 'image/jpeg';
+        
+        parts.push({
+          inline_data: {
+            mime_type: mimeType,
+            data: base64Data
+          }
+        });
+      }
+      return {
+        role: (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
+        parts
+      };
+    });
 
     if (contents.length === 0) {
       contents.push({ role: 'user', parts: [{ text: 'Dame el consejo del día.' }] });

@@ -38,7 +38,12 @@ export async function routeToAI(
   try {
     const formattedMessages = [
       { role: 'system', content: systemPrompt },
-      ...messages
+      ...messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        // Si el mensaje tiene datos de imagen (base64), los preservamos para askAI
+        image: (m as any).image 
+      }))
     ];
 
     return await askAI(formattedMessages, tier);
