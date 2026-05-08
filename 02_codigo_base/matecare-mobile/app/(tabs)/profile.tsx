@@ -9,6 +9,7 @@ import { MotiView } from 'moti';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { triggerLocalNotification } from '../../components/NotificationManager';
 
 export default function Profile() {
   const { theme, setTheme } = useTheme();
@@ -129,6 +130,15 @@ export default function Profile() {
               <Ionicons name="stats-chart-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
               <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Métricas del Ciclo</Text>
               <Ionicons name="chevron-forward" size={16} color={theme?.colors?.border || 'rgba(255,255,255,0.1)'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
+              onPress={() => triggerLocalNotification("SISTEMA ACTIVO", "La red de inteligencia táctica está sincronizada con tu dispositivo.")}
+            >
+              <Ionicons name="notifications-outline" size={20} color={theme?.colors?.accent || '#CFAA3C'} />
+              <Text style={[styles.actionText, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>Probar Notificación Táctica</Text>
+              <Ionicons name="flash" size={16} color={theme?.colors?.accent || '#CFAA3C'} />
             </TouchableOpacity>
 
             <TouchableOpacity 

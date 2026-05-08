@@ -10,11 +10,10 @@ import * as Notifications from 'expo-notifications';
 import { LogBox } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ToastProvider } from '../context/ToastContext';
+import { NotificationManager } from '../components/NotificationManager';
 
 // Silenciar advertencia de notificaciones en Expo Go
 LogBox.ignoreLogs(['expo-notifications', 'remote notifications']);
-
-
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,7 +25,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  // Resetear estados al cerrar sesión
   useEffect(() => {
     if (!session) {
       setProfileLoaded(false);
@@ -37,17 +35,26 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading || !isLoaded) return;
 
-    // Si hay sesión pero no hemos verificado el perfil, lo hacemos
     if (session && !profileLoaded) {
+      console.log('[AuthGuard] Verificando perfil en servidor...');
       apiFetch('/profile')
         .then(() => {
+          console.log('[AuthGuard] Perfil encontrado.');
           setNeedsOnboarding(false);
           setProfileLoaded(true);
         })
         .catch((err) => {
-          console.log('[AuthGuard] Perfil no encontrado o error:', err.message);
-          setNeedsOnboarding(true);
-          setProfileLoaded(true);
+          const isNotFound = err.message?.includes('404') || err.message?.includes('not found');
+          console.log('[AuthGuard] Error al cargar perfil:', err.message, '¿Es 404?', isNotFound);
+          
+          if (isNotFound) {
+            setNeedsOnboarding(true);
+            setProfileLoaded(true);
+          } else {
+            // Si es otro error (ej: 401, 500), no marcamos como cargado para reintentar
+            // o simplemente esperamos a que la sesión se estabilice.
+            console.warn('[AuthGuard] Error no crítico, esperando...');
+          }
         });
       return;
     }
@@ -55,17 +62,28 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
 
-    // Caso 1: No hay sesión y no estamos en auth -> Ir a login
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
+    const isWrongRoute = (!session && !inAuthGroup) || 
+                       (session && profileLoaded && needsOnboarding && !inOnboardingGroup) ||
+                       (session && profileLoaded && !needsOnboarding && inAuthGroup);
+
+    // Evitar redirecciones infinitas o prematuras
+    if (loading || !isLoaded || isTransitioning) {
+      console.log('[AuthGuard] Cargando o transicionando, esperando...');
+      return;
+    }
+
+    if (!session) {
+      if (!inAuthGroup) {
+        console.log('[AuthGuard] Redirigiendo a login (Sin sesión activa)');
+        router.replace('/(auth)/login');
+      }
     } 
-    // Caso 2: Hay sesión y ya verificamos el perfil
-    else if (session && profileLoaded) {
+    else if (profileLoaded) {
       if (needsOnboarding && !inOnboardingGroup) {
-        // Logueado pero sin perfil -> Onboarding
+        console.log('[AuthGuard] Redirigiendo a onboarding (Perfil pendiente)');
         router.replace('/(onboarding)/cycle-setup');
       } else if (!needsOnboarding && inAuthGroup) {
-        // Logueado con perfil -> Dashboard (si está en login)
+        console.log('[AuthGuard] Redirigiendo a dashboard (Todo OK)');
         router.replace('/(tabs)');
       }
     }
@@ -74,8 +92,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboardingGroup = segments[0] === '(onboarding)';
   const isTransitioning = session && !profileLoaded;
-  
-  // Bloqueo visual durante la verificación
   const isWrongRoute = (!session && !inAuthGroup) || 
                        (session && profileLoaded && needsOnboarding && !inOnboardingGroup) ||
                        (session && profileLoaded && !needsOnboarding && inAuthGroup);
@@ -91,7 +107,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     'OpenSans-Regular': OpenSans_400Regular,
@@ -102,18 +117,17 @@ export default function RootLayout() {
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
+        shouldShowAlert: true,
         shouldShowBanner: true,
         shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-      } as any),
+      }),
     });
 
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
 
-  console.log('[RootLayout] Renderizando...', { loaded, error });
   if (!loaded && !error) return null;
 
   return (
@@ -121,17 +135,18 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <AuthGuard>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(onboarding)" />
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-            </AuthGuard>
+            <NotificationManager>
+              <AuthGuard>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(onboarding)" />
+                  <Stack.Screen name="(tabs)" />
+                </Stack>
+              </AuthGuard>
+            </NotificationManager>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
 }
-
