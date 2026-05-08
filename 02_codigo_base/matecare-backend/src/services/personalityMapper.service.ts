@@ -105,3 +105,29 @@ export const PREFERENCE_DESCRIPTIONS = {
     distraction_laughs:'Cuando está estresada necesita distracción y que la hagas reír.',
   }
 };
+
+/**
+ * Fases del ciclo (tono actualizado v3.0)
+ */
+export const PHASE_TACTICAL_CONTEXT = {
+  MENSTRUAL: `
+    Fase de retiro voluntario. Energía baja intencionalmente.
+    No es tristeza, es reset. Evita planes, ruido social o expectativas.
+    Tu rol: logística invisible. Que no tenga que pedir nada.
+  `,
+  FOLLICULAR: `
+    Modo apertura activado. Energía en ascenso, mente clara.
+    Receptiva a conversaciones, planes y novedad.
+    Tu rol: propón, organiza, sorprende. Ventana táctica abierta.
+  `,
+  OVULATION: `
+    Peak de energía social y romántica. Máxima conexión disponible.
+    Quiere sentirse vista y deseada. No por obligación: por genuina atracción.
+    Tu rol: presencia total. Sin distraerse. Esta noche importa.
+  `,
+  LUTEAL: `
+    Blindaje emocional activado. Procesa todo con lupa.
+    Lo que antes pasaba, ahora duele. No es exageración: es biología.
+    Tu rol: reduce fricción. Elimina su toma de decisiones. No debatas. No resuelvas. Contén.
+  `
+} as const;

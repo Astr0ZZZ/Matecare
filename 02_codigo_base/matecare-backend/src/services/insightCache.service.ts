@@ -57,14 +57,14 @@ function buildInsightPrompt(req: InsightRequest): string {
   return `Eres MateCare, asistente de inteligencia emocional. Genera 3 consejos tácticos.
 
 ${vision ? `
-## CONTEXTO DE VISIÓN v2.1 (Prioridad Máxima)
+## CONTEXTO DE VISIÓN v3.0 (Prioridad Máxima)
 A través del análisis visual avanzado, hemos detectado:
-- Estado detectado: ${vision.dominantEmotion} (Confianza: ${Math.round((vision.faceConfidence || 0) * 100)}%)
-- Autenticidad: ${vision.hasDiscrepancy ? '⚠️ DISCREPANCIA DETECTADA (la emoción mostrada es falsa/social)' : vision.isSuppressed ? '⚡ SUPRESIÓN (está conteniendo su emoción)' : 'Auténtica'}
-${vision.hasDiscrepancy ? '- INDICACIÓN: Ella muestra una cara, pero siente otra cosa. Ignora la superficie y responde a la necesidad oculta.' : ''}
-- Contexto ambiental: ${vision.sceneCategory || vision.environment}
-- Lenguaje corporal: ${vision.bodyLanguage || 'n/a'}
-${vision.emotionalHistory ? `- Tendencia reciente: ${vision.emotionalHistory}` : ''}
+- Estado detectado: ${vision.emotional_tone} (Confianza: ${Math.round((vision.tactical_confidence || 0) * 100)}%)
+- Autenticidad: ${vision.visual_discrepancy ? '⚠️ DISCREPANCIA DETECTADA (la emoción mostrada es falsa/social)' : vision.suppression_detected ? '⚡ SUPRESIÓN (está conteniendo su emoción)' : 'Auténtica'}
+${vision.visual_discrepancy ? '- INDICACIÓN: Ella muestra una cara, pero siente otra cosa. Ignora la superficie y responde a la necesidad oculta.' : ''}
+- Contexto ambiental: ${vision.environment_context} (Mood color: ${vision.color_mood})
+- Fatiga detectada: ${vision.fatigue_signal}
+- Señal corporal: ${vision.head_tilt_signal}
 ` : ''}
 
 ## PERFIL PSICOLÓGICO

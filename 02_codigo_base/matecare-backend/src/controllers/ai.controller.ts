@@ -2,18 +2,16 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { buildMasterPrompt } from '../services/promptEngine.service';
-import { askAI } from '../services/aiClient.service';
-import { routeToAI, detectTier } from '../services/aiRouter.service';
 import { getInsight, detectInsightContext } from '../services/insightCache.service';
 import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
 import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
+import { processChat } from '../services/ai.service';
 
 // Cache en memoria para cuando Redis está offline
 const memoryCache: Record<string, string> = {};
 
 /**
- * Interfaces para mejorar el tipado y evitar el uso excesivo de 'any'
+ * Interfaces para mejorar el tipado
  */
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -25,11 +23,11 @@ async function getPersonalityProfile(userId: string) {
 }
 
 /**
- * Handler principal para el chat interactivo
+ * Handler principal para el chat interactivo (v3.0 Two-Agent System)
  */
 export const handleChat = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
-  const { mensaje, history } = req.body;
+  const { mensaje, history, image } = req.body;
 
   if (!userId) {
     return res.status(401).json({ error: 'User ID is required' });
@@ -46,11 +44,9 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
     const personalityProfile = await getPersonalityProfile(userId);
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // 1. Lógica de Cache con Insight Engine
-    if (personalityProfile?.mbtiType && mensaje) {
+    // 1. Lógica de Cache con Insight Engine (mantenemos para velocidad)
+    if (personalityProfile?.mbtiType && mensaje && !image) {
       const context = detectInsightContext(mensaje);
-
-      // Si el contexto es específico y diferente a plan_romantico, usamos el cache de insights
       if (context !== 'plan_romantico') {
         const cachedInsight = await getInsight({
           mbtiType: personalityProfile.mbtiType as MBTIType,
@@ -92,14 +88,9 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
           .slice(-6)
       : [];
 
-    const messages = await buildMasterPrompt(userId, mensaje, trimmedHistory);
+    // 3. Orquestador de Dos Agentes (v3.0)
+    const aiResponse = await processChat(userId, mensaje, image, trimmedHistory);
     
-    // Inyectar reglas de precisión
-    const lastMsg = messages[messages.length - 1];
-    lastMsg.content += ". REGLA CRÍTICA: Solo tienes permitido responder de forma extremadamente precisa. Solo una de tus respuestas en toda la conversación puede ser extensa (máximo 100 palabras), las demás deben ser de máximo 50 palabras. No uses introducciones innecesarias.";
-
-    const tier = detectTier(mensaje);
-    const aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
     return res.json({ response: aiResponse, fromCache: false });
 
   } catch (error) {
@@ -128,63 +119,27 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // Cache Key basada en fase actual para ahorrar tokens
+    // Cache Key basada en fase actual
     const dailyCacheKey = `daily:${userId}:${cycle.phase}`;
-
-    console.log(`[AI] Recomendación por fase para ${userId} (${cycle.phase})`);
 
     // 1. Intentar Caché
     if (isRedisConnected) {
       try {
         const cached = await redis.get(dailyCacheKey);
-        if (cached) {
-          console.log(`[Cache] HIT Redis: ${dailyCacheKey}`);
-          return res.json({ recommendation: cached, cycle, fromCache: true });
-        }
-      } catch (redisError) {
-        console.warn("[Cache] Fallo en lectura Redis, intentando memoria...");
-      }
+        if (cached) return res.json({ recommendation: cached, cycle, fromCache: true });
+      } catch (redisError) {}
     }
 
     const memoryCached = memoryCache[dailyCacheKey];
-    if (memoryCached) {
-      console.log(`[Cache] HIT Memory: ${dailyCacheKey}`);
-      return res.json({ recommendation: memoryCached, cycle, fromCache: true });
-    }
+    if (memoryCached) return res.json({ recommendation: memoryCached, cycle, fromCache: true });
 
-    console.log(`[AI] Cache MISS. Llamando a Matriz Táctica GPT-5...`);
+    // 2. Generar Recomendación usando el nuevo sistema (mensaje vacío para recomendación base)
+    const aiResponse = await processChat(userId, "Dame mi recomendación táctica del día basada en su fase actual.", undefined, []);
 
-    const personalityProfile = await getPersonalityProfile(userId);
-    let aiResponse: string = "";
-
-    // Si tiene perfil MBTI, usamos el motor de insights (más rápido/barato)
-    if (personalityProfile?.mbtiType) {
-      aiResponse = await getInsight({
-        mbtiType: personalityProfile.mbtiType as MBTIType,
-        phase: cycle.phase as CyclePhase,
-        context: 'plan_romantico',
-        affectionStyle: profile.affectionStyle as AffectionStyle,
-        conflictStyle: profile.conflictStyle as ConflictStyle,
-        attachmentStyle: (personalityProfile.attachmentStyle as AttachmentStyle) ?? 'SECURE',
-        preferences: personalityProfile.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
-      });
-    } else {
-      // Usar el ensamblador para recomendación diaria
-      const messages = await buildMasterPrompt(userId);
-      messages[messages.length - 1].content += ". Responde en un solo párrafo corto de máximo 60 palabras.";
-      const tier = detectTier(); 
-      aiResponse = await routeToAI(messages[0].content, messages.slice(1).map(m => ({ role: m.role as any, content: m.content })), tier);
-    }
-
-    // Guardar en Redis y Memoria
-    try {
-      memoryCache[dailyCacheKey] = aiResponse;
-      if (isRedisConnected) {
-        await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
-        console.log(`[Cache] Guardado en Redis: ${dailyCacheKey}`);
-      }
-    } catch (redisError) {
-      console.warn("[Cache] Error guardando en Redis, mantenido en memoria.");
+    // Guardar en Cache
+    memoryCache[dailyCacheKey] = aiResponse;
+    if (isRedisConnected) {
+      await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
     }
 
     return res.json({ recommendation: aiResponse, cycle, fromCache: false });

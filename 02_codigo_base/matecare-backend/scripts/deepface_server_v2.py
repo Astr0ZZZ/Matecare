@@ -16,7 +16,7 @@ Uso:
 """
 
 from flask import Flask, request, jsonify
-import base64, io, os, time, logging
+import base64, io, os, time, logging, urllib.request
 import numpy as np
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,22 +29,24 @@ INTERNAL_TOKEN = os.environ.get("DEEPFACE_TOKEN", "matecare-internal-secret")
 
 # ─── Carga lazy de modelos pesados ─────────────────────────────────────────
 
-_deepface_models = {}
-_yolo_model = None
-_places_model = None
-_places_classes = None
-_places_labels = None  # indoor/outdoor labels
+from typing import Any, Optional
+
+_deepface_loaded: bool = False
+_yolo_model: Any = None
+_places_model: Any = None
+_places_classes: Optional[list] = None
+_places_labels: Optional[dict] = None
 
 def load_deepface():
     """Pre-carga los modelos de DeepFace en memoria para respuestas rápidas."""
-    from deepface.extendedmodels import Emotion, Age, Gender
-    global _deepface_models
-    if not _deepface_models:
-        log.info("[Init] Cargando modelos DeepFace...")
-        _deepface_models["emotion"] = Emotion.loadModel()
-        _deepface_models["age"]     = Age.loadModel()
-        _deepface_models["gender"]  = Gender.loadModel()
+    try:
+        from deepface import DeepFace
+        log.info("[Init] Verificando DeepFace...")
+        # En v0.0.99+ la carga es automática al primer uso o vía build_model
+        # Pero podemos verificar que el módulo base esté presente
         log.info("[Init] DeepFace listo.")
+    except (ImportError, Exception) as e:
+        log.warning(f"[Init] DeepFace no disponible: {e}. El servidor iniciará sin soporte facial profundo.")
 
 def load_yolo():
     global _yolo_model
@@ -58,13 +60,13 @@ def load_places():
     global _places_model, _places_classes, _places_labels
     if _places_model is None:
         try:
-            import torch, torchvision.models as models
+            import torch
+            import torchvision.models as models
             log.info("[Init] Cargando Places365 (ResNet18)...")
             model = models.__dict__["resnet18"](num_classes=365)
             model_file = "resnet18_places365.pth.tar"
 
             if not os.path.exists(model_file):
-                import urllib.request
                 url = "http://places2.csail.mit.edu/models_places365/resnet18_places365.pth.tar"
                 log.info(f"[Init] Descargando {model_file}...")
                 urllib.request.urlretrieve(url, model_file)
@@ -170,7 +172,18 @@ def analyze_face(img_array: np.ndarray) -> dict:
             enforce_detection=False,
             silent=True,
         )
+        
+        # Validación robusta de la respuesta
+        if not result:
+            raise ValueError("No se detectaron resultados")
+            
+        # Tomamos la primera cara detectada
         face = result[0] if isinstance(result, list) else result
+        
+        # Si por alguna razón sigue siendo una lista (formato anidado raro), forzamos el primer elemento
+        if isinstance(face, list):
+            face = face[0]
+
         raw_emotion = face.get("dominant_emotion", "neutral")
         emotions_raw = face.get("emotion", {})
 
@@ -547,7 +560,7 @@ def synthesize_context(face: dict, posture: dict, scene: dict,
     energy_count = {"alta": 0, "media": 0, "baja": 0}
     for v in energy_votes:
         energy_count[v] += 1
-    energy_appearance = max(energy_count, key=energy_count.get)
+    energy_appearance = max(energy_count, key=lambda x: energy_count[x])
 
     # Descripción enriquecida de lenguaje corporal
     body_desc = posture["bodyLanguage"]

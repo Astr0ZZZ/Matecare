@@ -1,47 +1,17 @@
 /**
  * visionAnalysis.service.ts
  *
- * Responsabilidad: Llamar al VPS de DeepFace y normalizar la respuesta.
- * V2.1: Soporte para campos enriquecidos, autenticidad emocional y Circuit Breaker.
+ * Responsabilidad: Llamar al VPS de Vision Engine v2.3 y normalizar la respuesta.
+ * v3.0: Soporte para Deep Vision mejorado (Mediapipe, EAR, Head Tilt).
  */
 
-export interface VisionContext {
-  // Campos base (v1 compat)
-  dominantEmotion: string;
-  energyAppearance: string;
-  environment: string;
-  style: string;
-
-  // Campos enriquecidos (v2)
-  allEmotions?: Record<string, number>;
-  faceConfidence?: number;
-  estimatedAge?: number;
-  bodyLanguage?: string;
-  activityLevel?: string;
-  isIndoor?: boolean;
-  sceneCategory?: string;
-  lightCondition?: string;
-  timeOfDayHint?: string;
-  ambientMood?: string;
-  clothingTone?: string;
-  poseDetected?: boolean;
-  analysisVersion?: string;
-  processingMs?: number;
-
-  // NUEVO v2.1 — Autenticidad emocional
-  isAuthentic?: boolean | null;
-  isSuppressed?: boolean;
-  authenticityLabel?: string;
-  hasDiscrepancy?: boolean;
-  analysisReliable?: boolean;
-  emotionalHistory?: string; // v2.1 — Resumen de tendencias
-}
+import { VisionContext } from '../types/vision';
+export { VisionContext };
 
 const DEEPFACE_URL = process.env.DEEPFACE_URL ?? "http://localhost:5001";
 const DEEPFACE_TOKEN = process.env.DEEPFACE_TOKEN ?? "matecare-internal-secret";
-const TIMEOUT_MS = 15_000; 
 
-// Circuit Breaker — protege contra VPS caído
+// Circuit Breaker
 interface CircuitState {
   failures: number;
   lastFailure: number;
@@ -50,20 +20,17 @@ interface CircuitState {
 
 const circuitState: CircuitState = { failures: 0, lastFailure: 0, isOpen: false };
 const FAILURE_THRESHOLD = 4;
-const RECOVERY_TIMEOUT_MS = 60_000; // 1 minuto
+const RECOVERY_TIMEOUT_MS = 60_000;
 
 function checkCircuit(): boolean {
-  if (!circuitState.isOpen) return true; // circuito cerrado = operacional
-
+  if (!circuitState.isOpen) return true;
   const elapsed = Date.now() - circuitState.lastFailure;
   if (elapsed > RECOVERY_TIMEOUT_MS) {
-    // Intentar recuperación
     circuitState.isOpen = false;
     circuitState.failures = 0;
-    console.log('[Vision] Circuit breaker: intentando recuperación...');
     return true;
   }
-  return false; // circuito abierto = no llamar al VPS
+  return false;
 }
 
 function recordSuccess() {
@@ -75,19 +42,18 @@ function recordFailure() {
   circuitState.lastFailure = Date.now();
   if (circuitState.failures >= FAILURE_THRESHOLD) {
     circuitState.isOpen = true;
-    console.warn(`[Vision] Circuit breaker ABIERTO — VPS no disponible (${circuitState.failures} fallos)`);
+    console.warn(`[Vision] Circuit breaker ABIERTO — VPS no disponible`);
   }
 }
 
-export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionContext> {
-  // Circuit breaker — si el VPS está caído, no bloqueamos
+export async function analyze(imageBase64: string): Promise<VisionContext> {
   if (!checkCircuit()) {
-    console.warn('[Vision] Circuit breaker activo — devolviendo contexto neutro');
-    return neutralVisionContext();
+    throw new Error('Vision service circuit breaker open');
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  // El fallback de 900ms se maneja en el orquestador, pero aquí ponemos un timeout de seguridad
+  const timer = setTimeout(() => controller.abort(), 5000);
 
   try {
     const res = await fetch(`${DEEPFACE_URL}/analyze`, {
@@ -101,13 +67,7 @@ export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionCo
     });
 
     if (!res.ok) {
-      // 422 = imagen rechazada por quality gate del VPS
-      if (res.status === 422) {
-        const err = (await res.json().catch(() => ({}))) as any;
-        throw new ImageQualityError(err.reason || 'imagen_rechazada');
-      }
-      const err = (await res.json().catch(() => ({}))) as any;
-      throw new Error(`DeepFace v2 error ${res.status}: ${JSON.stringify(err)}`);
+      throw new Error(`Vision service error ${res.status}`);
     }
 
     const data = await res.json();
@@ -115,9 +75,6 @@ export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionCo
     return data as VisionContext;
 
   } catch (error: any) {
-    if (error instanceof ImageQualityError) {
-      throw error; // No contar como fallo del VPS — es un rechazo intencional
-    }
     recordFailure();
     throw error;
   } finally {
@@ -125,20 +82,19 @@ export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionCo
   }
 }
 
-// Error específico para imágenes rechazadas por calidad
-export class ImageQualityError extends Error {
-  constructor(public reason: string) {
-    super(`Imagen rechazada por calidad: ${reason}`);
-    this.name = 'ImageQualityError';
-  }
-}
+export { analyze as analyzePartnerPhoto };
 
 export function neutralVisionContext(): VisionContext {
   return {
-    dominantEmotion: "calma",
-    energyAppearance: "media",
-    environment: "hogar",
-    style: "casual",
-    analysisVersion: "2.0-fallback"
+    estimated_style: "Casual/Comfort",
+    social_energy: "Medium",
+    emotional_tone: "Calm",
+    visual_discrepancy: false,
+    tactical_confidence: 0.5,
+    fatigue_signal: "low",
+    environment_context: "unknown",
+    color_mood: "neutral",
+    head_tilt_signal: "neutral",
+    suppression_detected: false
   };
 }

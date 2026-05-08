@@ -69,3 +69,13 @@ export function calculateCycleState(
     daysUntilNextPeriod
   };
 }
+
+/**
+ * Módulo de anticipación (48h antes de LUTEAL)
+ */
+export function getLutealWarning(daysUntilLuteal: number): string | null {
+  if (daysUntilLuteal <= 2 && daysUntilLuteal > 0) {
+    return `⚠️ AVISO TÁCTICO: Fase Lútea en ${daysUntilLuteal} día${daysUntilLuteal === 1 ? '' : 's'}. Despeja su agenda, cierra pendientes y evita conversaciones difíciles este fin de semana.`;
+  }
+  return null;
+}
