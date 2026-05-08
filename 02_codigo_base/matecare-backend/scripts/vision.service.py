@@ -34,12 +34,12 @@ log = logging.getLogger("matecare-vision")
 app = Flask(__name__)
 INTERNAL_TOKEN = os.environ.get("DEEPFACE_TOKEN", "matecare-internal-secret")
 
-# ─── Carga lazy de modelos ───────────────────────────────────────────────────
+from typing import Any, Optional
 
-_deepface_loaded = False
-_yolo_model = None
-_obj_model = None
-_face_landmarker = None
+_deepface_loaded: bool = False
+_yolo_model: Any = None
+_obj_model: Any = None
+_face_landmarker: Any = None
 
 def load_deepface():
     global _deepface_loaded
@@ -76,11 +76,11 @@ def load_mediapipe():
             log.info("[Init] Cargando Mediapipe FaceLandmarker...")
             # Buscar el modelo en la carpeta del script o en la actual
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(script_dir, "face_landmarker.task")
+            model_path = os.path.join(script_dir, "models", "face_landmarker.task")
             
             if not os.path.exists(model_path):
-                # Fallback a la carpeta raíz por si acaso
-                model_path = "face_landmarker.task"
+                # Fallback a la carpeta scripts/models por si acaso
+                model_path = os.path.join("scripts", "models", "face_landmarker.task")
             
             if not os.path.exists(model_path):
                 log.warning(f"[Init] Modelo {model_path} no encontrado.")
@@ -104,7 +104,17 @@ def analyze_face_deepface(img_bgr):
     try:
         from deepface import DeepFace
         result = DeepFace.analyze(img_path=img_bgr, actions=["emotion"], enforce_detection=False, silent=True)
+        
+        if not result:
+            return {"emotion": "neutral", "all_emotions": {}, "confidence": 0.0}
+            
+        # Tomamos la primera cara detectada
         face = result[0] if isinstance(result, list) else result
+        
+        # Doble verificación para formatos anidados
+        if isinstance(face, list):
+            face = face[0]
+
         return {
             "emotion": face.get("dominant_emotion", "neutral"),
             "all_emotions": face.get("emotion", {}),
@@ -118,7 +128,7 @@ def analyze_face_deepface(img_bgr):
 def get_facial_signals(img_rgb):
     try:
         load_mediapipe()
-        if _face_landmarker is None:
+        if mp is None or _face_landmarker is None:
             return {"ear": None, "jaw_tension": None}
         
         # Mediapipe requiere mp.Image

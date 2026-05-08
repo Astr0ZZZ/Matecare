@@ -63,8 +63,13 @@ def load_places():
             import torch
             import torchvision.models as models
             log.info("[Init] Cargando Places365 (ResNet18)...")
+            
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            models_dir = os.path.join(script_dir, "models")
+            os.makedirs(models_dir, exist_ok=True)
+            
             model = models.__dict__["resnet18"](num_classes=365)
-            model_file = "resnet18_places365.pth.tar"
+            model_file = os.path.join(models_dir, "resnet18_places365.pth.tar")
 
             if not os.path.exists(model_file):
                 url = "http://places2.csail.mit.edu/models_places365/resnet18_places365.pth.tar"
@@ -78,7 +83,7 @@ def load_places():
             _places_model = model
 
             # Categorías de escena
-            classes_file = "categories_places365.txt"
+            classes_file = os.path.join(models_dir, "categories_places365.txt")
             if not os.path.exists(classes_file):
                 urllib.request.urlretrieve(
                     "https://raw.githubusercontent.com/csailvision/places365/master/categories_places365.txt",
@@ -88,7 +93,7 @@ def load_places():
                 _places_classes = [line.strip().split(" ")[0][3:] for line in f]
 
             # Labels indoor/outdoor
-            labels_file = "IO_places365.txt"
+            labels_file = os.path.join(models_dir, "IO_places365.txt")
             if not os.path.exists(labels_file):
                 urllib.request.urlretrieve(
                     "https://raw.githubusercontent.com/csailvision/places365/master/IO_places365.txt",
