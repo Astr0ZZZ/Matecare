@@ -1,8 +1,8 @@
 /**
  * visionAnalysis.service.ts
  *
- * Responsabilidad: Llamar al VPS de DeepFace y normalizar la respuesta
- * con lógica de resiliencia y manejo de múltiples rostros.
+ * Responsabilidad: Llamar al VPS de DeepFace y normalizar la respuesta.
+ * V2.1: Filtrado inteligente para priorizar el rostro de la pareja (mujer).
  */
 
 export interface VisionContext {
@@ -13,8 +13,6 @@ export interface VisionContext {
   faceDetected: boolean;
   analyzedAt: string;
   rawEmotions: Record<string, number>;
-  
-  // Campos v1 compat (para no romper el resto de la app)
   energyAppearance: string;
   environment: string;
   style: string;
@@ -25,11 +23,25 @@ const DEEPFACE_TOKEN = process.env.DEEPFACE_TOKEN ?? "matecare-internal-secret";
 const TIMEOUT_MS = 15_000; 
 
 /**
- * Normaliza la respuesta cruda del VPS a nuestro contrato VisionContext
+ * Normaliza la respuesta cruda del VPS.
+ * Si hay múltiples rostros, selecciona el que tenga mayor probabilidad de ser mujer.
  */
 function parseDeepFaceResponse(raw: any): VisionContext {
-  // DeepFace v2 devuelve un array si detecta rostros, o un objeto si es v1
-  const face = Array.isArray(raw) ? raw[0] : raw;
+  let face = null;
+
+  if (Array.isArray(raw)) {
+    console.log(`[VISION] Se detectaron ${raw.length} rostros. Buscando a la pareja...`);
+    // Priorizar rostro femenino (Woman > Man)
+    face = raw.find(f => f.gender && f.gender.Woman > f.gender.Man);
+    
+    // Si no encuentra una mujer clara, toma el rostro con la emoción más "fuerte" o el primero
+    if (!face) {
+      console.log(`[VISION] No se detectó un rostro femenino claro, usando rostro principal.`);
+      face = raw[0];
+    }
+  } else {
+    face = raw;
+  }
 
   if (!face || (!face.dominant_emotion && !face.emotion)) {
     return neutralVisionContext();
@@ -38,11 +50,13 @@ function parseDeepFaceResponse(raw: any): VisionContext {
   const dominant = face.dominant_emotion || "neutral";
   const confidence = Math.round(face.emotion?.[dominant] || 0);
   
-  // Mapeo de género
+  // Normalización de género
   let gender: 'male' | 'female' | 'unknown' = 'unknown';
   if (face.gender) {
     gender = face.gender.Woman > face.gender.Man ? 'female' : 'male';
   }
+
+  console.log(`[VISION] Análisis finalizado: ${gender} - ${dominant} (${confidence}%)`);
 
   return {
     dominantEmotion: dominant,
@@ -52,17 +66,12 @@ function parseDeepFaceResponse(raw: any): VisionContext {
     faceDetected: true,
     analyzedAt: new Date().toISOString(),
     rawEmotions: face.emotion || {},
-    
-    // Fallbacks para compatibilidad con promptEngine antiguo
     energyAppearance: confidence > 60 ? "alta" : "media",
     environment: "hogar",
     style: "casual"
   };
 }
 
-/**
- * Analiza una imagen con el servidor v2.0
- */
 export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionContext> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -78,28 +87,19 @@ export async function analyzePartnerPhoto(imageBase64: string): Promise<VisionCo
       signal: controller.signal,
     });
 
-    if (!res.ok) {
-      throw new Error(`DeepFace server error: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`DeepFace error: ${res.status}`);
 
     const data = await res.json();
     return parseDeepFaceResponse(data);
 
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.warn("[VISION] Timeout alcanzado, usando contexto neutro");
-    } else {
-      console.error("[VISION] Error en análisis:", error.message);
-    }
+    console.error("[VISION] Error:", error.message);
     return neutralVisionContext();
   } finally {
     clearTimeout(timer);
   }
 }
 
-/**
- * Versión fallback: contexto neutro de seguridad
- */
 export function neutralVisionContext(): VisionContext {
   return {
     dominantEmotion: "neutral",

@@ -57,8 +57,8 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       privacyLevel: profile.privacyLevel,
       conflictStyle: profile.conflictStyle,
       affectionStyle: profile.affectionStyle,
-      mbtiType: personalityProfile?.mbtiType as MBTIType | undefined,
-      attachmentStyle: personalityProfile?.attachmentStyle as AttachmentStyle | undefined,
+      mbtiType: (personalityProfile?.mbtiType as any),
+      attachmentStyle: (personalityProfile?.attachmentStyle as any),
       preferences: personalityProfile?.preferences as any,
       visionContext: vision,
     });
