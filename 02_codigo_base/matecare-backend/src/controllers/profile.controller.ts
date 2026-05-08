@@ -11,9 +11,7 @@ export const saveProfile = async (req: Request, res: Response) => {
 
   const {
     cycleLength, periodDuration, lastPeriodDate,
-    // Campos originales del quiz
     personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle,
-    // Nuevos campos MBTI
     thinkingStyle, decisionStyle, planningStyle,
     attachmentStyle, preferredPlans, musicMood, stressedNeeds
   } = req.body;
@@ -21,7 +19,6 @@ export const saveProfile = async (req: Request, res: Response) => {
   if (!userId) return res.status(401).json({ error: 'Usuario no identificado' });
 
   try {
-    // 1. Sincronizar usuario
     let user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       user = await prisma.user.create({
@@ -29,14 +26,12 @@ export const saveProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Guardar PartnerProfile
     const profile = await prisma.partnerProfile.upsert({
       where: { userId },
       update: { cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
       create: { userId, cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
     });
 
-    // 3. Si vienen los campos MBTI, calcular y guardar PersonalityProfile
     if (thinkingStyle && decisionStyle && planningStyle) {
       const quizAnswers: QuizAnswers = {
         personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle,
@@ -49,7 +44,6 @@ export const saveProfile = async (req: Request, res: Response) => {
 
       const computed = mapQuizToPersonality(quizAnswers);
 
-      // Buscamos si ya existen preferencias (como las de visión) para no borrarlas
       const existingPersonality = await prisma.personalityProfile.findUnique({ where: { userId } });
       const mergedPreferences = {
         ...(existingPersonality?.preferences as any || {}),
@@ -98,6 +92,7 @@ export const getProfile = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
+
 export const getRanking = async (req: Request, res: Response) => {
   try {
     const topUsers = await prisma.user.findMany({
@@ -110,7 +105,6 @@ export const getRanking = async (req: Request, res: Response) => {
       }
     });
     
-    // Ofuscar emails para privacidad
     const maskedRanking = topUsers.map((u, i) => ({
       rank: i + 1,
       name: u.email.split('@')[0],
@@ -123,3 +117,23 @@ export const getRanking = async (req: Request, res: Response) => {
   }
 };
 
+export const updatePushToken = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  const { token } = req.body;
+
+  if (!userId || !token) {
+    return res.status(400).json({ error: 'User ID and Token are required' });
+  }
+
+  try {
+    await (prisma.user as any).update({
+      where: { id: userId },
+      data: { pushToken: token }
+    });
+    console.log(`[PUSH] Token registrado para usuario ${userId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[PUSH] Error registrando token:', error);
+    res.status(500).json({ error: 'Failed to update push token' });
+  }
+};

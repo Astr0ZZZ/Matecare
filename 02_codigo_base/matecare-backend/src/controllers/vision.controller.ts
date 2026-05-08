@@ -106,9 +106,7 @@ export const handleProfileCalibration = async (req: AuthRequest, res: Response) 
     }
 
     const inferredTraits = {
-      detectedStyle: vision.style || 'casual',
-      clothingTone: vision.clothingTone || 'neutro',
-      estimatedAge: vision.estimatedAge || 25,
+      ...vision,
       calibrationMethod,
       lastCalibration: new Date().toISOString(),
     };

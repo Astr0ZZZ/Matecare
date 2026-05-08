@@ -8,11 +8,12 @@ import {
   ATTACHMENT_DESCRIPTIONS,
   PREFERENCE_DESCRIPTIONS
 } from './personalityMapper.service';
+import { VisionContext } from './visionAnalysis.service';
 
-// Cache en memoria para cuando Redis está offline
-const memoryCache: Record<string, string> = {};
+// Nivel 1 - Cache en memoria (Ultra-rápido)
+const memoryCache = new Map<string, string>();
 
-const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 días en Redis
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 días
 const DB_EXPIRY_DAYS = 30;
 
 interface InsightRequest {
@@ -27,165 +28,122 @@ interface InsightRequest {
     plans?: string;
     stressedNeeds?: string;
   };
+  visionContext?: VisionContext; // Nuevo: Soporte para Visión
 }
 
 /**
- * Construye la clave de cache única para esta combinación.
+ * Mapeo táctico de emociones a contexto de relación
  */
+const EMOTION_CONTEXT_MAP: Record<string, string> = {
+  happy:    'está en un momento de conexión positiva y alegría.',
+  sad:      'necesita contención emocional; prioriza la escucha activa.',
+  angry:    'está en un estado de activación o enojo; evita la confrontación directa.',
+  fear:     'muestra señales de ansiedad; ofrece seguridad y calma.',
+  disgust:  'muestra señales de rechazo; revisa la dinámica reciente.',
+  surprise: 'está en un estado de apertura emocional; buen momento para algo especial.',
+  neutral:  'está en un estado basal equilibrado.',
+};
+
 function buildCacheKey(req: InsightRequest): string {
-  return `${req.mbtiType}_${req.phase}_${req.context}_${req.affectionStyle}_${req.conflictStyle}`;
+  const emotion = req.visionContext?.dominantEmotion || 'none';
+  return `${req.mbtiType}_${req.phase}_${req.context}_${emotion}_${req.affectionStyle}`;
 }
 
-/**
- * Construye el prompt específico para generar el insight.
- */
 function buildInsightPrompt(req: InsightRequest): string {
   const mbtiDesc = MBTI_DESCRIPTIONS[req.mbtiType] || '';
   const attachDesc = ATTACHMENT_DESCRIPTIONS[req.attachmentStyle] || '';
+  const vision = req.visionContext;
 
-  const prefMusic = req.preferences?.music
-    ? PREFERENCE_DESCRIPTIONS.music[req.preferences.music as keyof typeof PREFERENCE_DESCRIPTIONS.music] || ''
-    : '';
-  const prefPlans = req.preferences?.plans
-    ? PREFERENCE_DESCRIPTIONS.plans[req.preferences.plans as keyof typeof PREFERENCE_DESCRIPTIONS.plans] || ''
-    : '';
-  const prefStress = req.preferences?.stressedNeeds
-    ? PREFERENCE_DESCRIPTIONS.stressedNeeds[req.preferences.stressedNeeds as keyof typeof PREFERENCE_DESCRIPTIONS.stressedNeeds] || ''
-    : '';
+  return `Eres MateCare, asistente de inteligencia emocional. Genera 3 consejos tácticos.
 
-  const contextDescriptions: Record<InsightContext, string> = {
-    plan_romantico:          'El usuario quiere hacer algo romántico o especial para su pareja.',
-    conflicto_tension:       'Hay tensión o un conflicto reciente en la relación.',
-    necesita_espacio:        'La pareja parece necesitar espacio o está distante.',
-    sorpresa_detalle:        'El usuario quiere sorprender a su pareja con un detalle.',
-    comunicacion_importante: 'El usuario necesita tener una conversación importante.',
-    dia_dificil:             'La pareja está teniendo un día difícil.',
-    plan_tactic_diario:      'El usuario necesita un consejo táctico diario basado en su fase y personalidad.',
-  };
+${vision ? `
+## CONTEXTO DE VISIÓN (Prioridad Máxima)
+A través del análisis visual, hemos detectado que ella ${EMOTION_CONTEXT_MAP[vision.dominantEmotion] || 'está tranquila'}.
+- Emoción dominante: ${vision.dominantEmotion} (Confianza: ${vision.emotionConfidence}%)
+- Edad estimada: ${vision.estimatedAge} años.
+*INSTRUCCIÓN:* Si la situación de chat parece normal pero la visión indica estrés o tristeza, prioriza lo que dice la visión.` : ''}
 
-  return `Eres MateCare. Genera un insight específico y accionable para este caso.
-
-PERFIL DE ELLA:
+## PERFIL PSICOLÓGICO
 - Tipo MBTI: ${req.mbtiType} — ${mbtiDesc}
 - Fase del ciclo: ${req.phase}
-- Lenguaje de amor: ${req.affectionStyle}
-- Manejo de conflictos: ${req.conflictStyle}
 - Estilo de apego: ${req.attachmentStyle} — ${attachDesc}
-${prefMusic ? `- Música: ${prefMusic}` : ''}
-${prefPlans ? `- Planes favoritos: ${prefPlans}` : ''}
-${prefStress ? `- Cuando está estresada: ${prefStress}` : ''}
-
-SITUACIÓN ACTUAL:
-${contextDescriptions[req.context]}
 
 INSTRUCCIONES:
-- Da exactamente 3 recomendaciones concretas y accionables.
+- Da exactamente 3 recomendaciones concretas.
 - Cada una en 1-2 oraciones máximo.
-- Explica brevemente por qué funciona dado su tipo MBTI y la fase del ciclo.
-- Tono de amigo cercano, no de manual.
+- Tono de amigo táctico, no clínico.
 - Responde en español.`;
 }
 
-/**
- * Obtiene un insight: desde Redis → DB → Gemini (en ese orden de prioridad).
- */
 export async function getInsight(req: InsightRequest): Promise<string> {
   const cacheKey = buildCacheKey(req);
+  const fullCacheKey = `insight:${cacheKey}`;
 
-  // 1. Buscar en Redis o Memoria (rápido)
+  // 1. L1 - Memory Cache
+  if (memoryCache.has(fullCacheKey)) {
+    console.log(`[Cache] HIT L1 (Memory): ${cacheKey}`);
+    return memoryCache.get(fullCacheKey)!;
+  }
+
+  // 2. L2 - Redis Cache
   if (isRedisConnected) {
     try {
-      const redisResult = await redis.get(`insight:${cacheKey}`);
-      if (redisResult) {
-        console.log(`[Cache] HIT Redis: ${cacheKey}`);
-        return redisResult;
+      const cached = await redis.get(fullCacheKey);
+      if (cached) {
+        console.log(`[Cache] HIT L2 (Redis): ${cacheKey}`);
+        memoryCache.set(fullCacheKey, cached);
+        return cached;
       }
-    } catch (e) {
-      console.warn("[Redis] Error en getInsight:", e);
-    }
+    } catch (e) { /* Fallback to DB */ }
   }
 
-  const memoryResult = memoryCache[`insight:${cacheKey}`];
-  if (memoryResult) {
-    console.log(`[Cache] HIT Memory: ${cacheKey}`);
-    return memoryResult;
-  }
-
-  // 2. Buscar en DB (persistente)
-  const dbResult = await prisma.personalityInsight.findUnique({
-    where: { cacheKey },
-  });
-
+  // 3. L3 - Database
+  const dbResult = await prisma.personalityInsight.findUnique({ where: { cacheKey } });
   if (dbResult && dbResult.expiresAt > new Date()) {
-    console.log(`[Cache] HIT DB: ${cacheKey}`);
-
-    // Actualizar hit count y guardar en Redis para próxima vez
-    await prisma.personalityInsight.update({
-      where: { cacheKey },
-      data: { hitCount: { increment: 1 } }
-    });
-
+    console.log(`[Cache] HIT L3 (DB): ${cacheKey}`);
+    
+    // Subir a niveles superiores
+    memoryCache.set(fullCacheKey, dbResult.insight);
     if (isRedisConnected) {
-      try {
-        await redis.set(`insight:${cacheKey}`, dbResult.insight, { EX: CACHE_TTL_SECONDS });
-      } catch (e) { /* Redis opcional */ }
+      try { await redis.set(fullCacheKey, dbResult.insight, { EX: CACHE_TTL_SECONDS }); } catch (e) {}
     }
-
     return dbResult.insight;
   }
 
-  // 3. Generar con Gemini
-  console.log(`[Cache] MISS — calling Gemini for: ${cacheKey}`);
+  // 4. MISS - IA Generation
+  console.log(`[Cache] MISS - Generando con IA: ${cacheKey}`);
   const prompt = buildInsightPrompt(req);
   const messages = [
-    { role: 'system' as const, content: 'Eres MateCare, asistente de inteligencia emocional. Responde siempre en español.' },
+    { role: 'system' as const, content: 'Eres MateCare. Consejos cortos, tácticos y precisos.' },
     { role: 'user' as const, content: prompt }
   ];
 
-  const insight = await askAI(messages) || "Lo más importante hoy es la presencia tranquila.";
+  const insight = await askAI(messages) || "Prioriza la presencia tranquila hoy.";
 
-  // Guardar en DB
+  // Guardar en todos los niveles
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + DB_EXPIRY_DAYS);
 
   await prisma.personalityInsight.upsert({
     where: { cacheKey },
-    update: { insight, expiresAt, hitCount: 0 },
+    update: { insight, expiresAt, hitCount: { increment: 1 } },
     create: { cacheKey, insight, expiresAt }
   });
 
-  // Guardar en Redis y Memoria
-  memoryCache[`insight:${cacheKey}`] = insight;
+  memoryCache.set(fullCacheKey, insight);
   if (isRedisConnected) {
-    try {
-      await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
-    } catch (e) { /* Opcional */ }
+    try { await redis.set(fullCacheKey, insight, { EX: CACHE_TTL_SECONDS }); } catch (e) {}
   }
 
   return insight;
 }
 
-/**
- * Detecta el contexto de la pregunta del usuario para usar la clave correcta.
- * Keyword matching simple — se puede mejorar con IA si se necesita.
- */
 export function detectInsightContext(userMessage: string): InsightContext {
   const msg = userMessage.toLowerCase();
-
-  if (/pele[oó]|discut|conflict|enoja|molest|tension|distanci/.test(msg))
-    return 'conflicto_tension';
-
-  if (/espacio|sola|cerrada|no quiere hablar|ignora/.test(msg))
-    return 'necesita_espacio';
-
-  if (/sorpresa|detalle|regalo|detallit/.test(msg))
-    return 'sorpresa_detalle';
-
-  if (/hablar|decirl|conversa|important|serio/.test(msg))
-    return 'comunicacion_importante';
-
-  if (/mal d[ií]a|lloró|triste|difícil|estresad/.test(msg))
-    return 'dia_dificil';
-
-  return 'plan_romantico'; // default
+  if (/pele|discut|conflict|enoja|molest/.test(msg)) return 'conflicto_tension';
+  if (/espacio|sola|distante/.test(msg)) return 'necesita_espacio';
+  if (/sorpresa|detalle|regalo/.test(msg)) return 'sorpresa_detalle';
+  if (/hablar|conversa|important/.test(msg)) return 'comunicacion_importante';
+  if (/mal d[ií]a|triste|estresad/.test(msg)) return 'dia_dificil';
+  return 'plan_romantico';
 }

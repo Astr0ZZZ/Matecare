@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { saveProfile, getProfile, getRanking } from '../controllers/profile.controller';
+import { saveProfile, getProfile, getRanking, updatePushToken } from '../controllers/profile.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -10,7 +10,8 @@ router.use((req, res, next) => {
 });
 
 router.post('/', requireAuth, saveProfile);
-router.get('/', requireAuth, getProfile); // New: fetch profile of current authenticated user
+router.get('/', requireAuth, getProfile); 
+router.post('/push-token', requireAuth, updatePushToken);
 router.get('/leaderboard/all', requireAuth, getRanking);
 router.get('/:userId', requireAuth, getProfile);
 

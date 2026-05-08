@@ -71,6 +71,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     let recommendation: string | null = null;
     
     try {
+        const visionData = (personalityProfile?.preferences as any);
         const insightPromise = getInsight({
             mbtiType: (personalityProfile?.mbtiType as any) || 'INTJ',
             phase: cycle.phase as any,
@@ -79,6 +80,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
             conflictStyle: profile.conflictStyle as any,
             attachmentStyle: (personalityProfile?.attachmentStyle as any) || 'SECURE',
             preferences: (personalityProfile?.preferences as any) || {},
+            visionContext: visionData?.faceDetected ? visionData : undefined,
         });
 
         const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
