@@ -1,16 +1,17 @@
 import { Router } from 'express';
-import { handleChat, getDailyRecommendation } from '../controllers/ai.controller';
 import { handleVisionChat, handleProfileCalibration } from '../controllers/vision.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Rutas de IA Generativa
-router.post('/chat', requireAuth, handleChat);
-router.get('/recommendation/:userId', requireAuth, getDailyRecommendation);
+/**
+ * Rutas unificadas para el motor de visión MateCare v2.1
+ */
 
-// Rutas de Visión Táctica (Consolidadas aquí para evitar errores de módulo)
+// Sincronización de emoción en tiempo real
 router.post('/vision-chat', requireAuth, handleVisionChat);
+
+// Calibración de perfil basada en visión
 router.post('/calibrate-profile', requireAuth, handleProfileCalibration);
 
 export default router;

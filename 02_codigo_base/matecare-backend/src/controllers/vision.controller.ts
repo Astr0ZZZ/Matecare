@@ -85,12 +85,19 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
 /**
  * POST /api/ai/calibrate-profile
  */
-export const handleProfileCalibration = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ error: "No autenticado" });
+export const handleProfileCalibration = async (req: Request, res: Response) => {
+  const { imageBase64 } = req.body;
+  const userId = (req as any).user?.id;
 
-  const { image } = req.body as { image?: string };
-  if (!image) return res.status(400).json({ error: "Se requiere imagen" });
+  console.log(`[VISION] Calibrando perfil para usuario: ${userId}`);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Usuario no autenticado' });
+  }
+
+  if (!imageBase64) {
+    return res.status(400).json({ error: 'No se recibió la imagen (imageBase64)' });
+  }
 
   try {
     let vision: VisionContext;
@@ -98,7 +105,7 @@ export const handleProfileCalibration = async (req: AuthRequest, res: Response) 
 
     try {
       console.log(`[VISION] Calibrando perfil - Usuario: ${userId}`);
-      vision = await analyzePartnerPhoto(image);
+      vision = await analyzePartnerPhoto(imageBase64);
     } catch (visionError) {
       console.warn("[VISION] DeepFace falló en calibración. Aplicando rasgos base de seguridad.");
       vision = neutralVisionContext();

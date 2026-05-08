@@ -6,8 +6,8 @@ import dotenv from 'dotenv'
 import profileRoutes from './routes/profile.routes'
 import cycleRoutes from './routes/cycle.routes'
 import missionRoutes from './routes/missions.routes'
-import aiRoutes from './routes/ai.routes'
-import notificationRoutes from './routes/notifications.routes'
+import aiRoutes from './routes/ai.routes';
+import notificationRoutes from './routes/notifications.routes';
 import { initNotificationScheduler } from './services/notificationScheduler.service'
 import { getDashboardSummary } from './controllers/dashboard.controller'
 import { requireAuth } from './middleware/auth.middleware'
