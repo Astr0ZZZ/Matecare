@@ -67,25 +67,56 @@ export default function CalendarScreen() {
     const marks: Record<string, any> = {};
     const today = new Date().toISOString().split('T')[0];
     
+    // 1. Marcar días de fase (Anillo doble / Periodo)
+    const PHASE_COLORS = {
+      MENSTRUAL: '#FF4444',
+      FOLLICULAR: '#CFAA3C',
+      OVULATION: '#4CAF50',
+      LUTEAL: '#B8860B'
+    };
+
+    if (cycle && cycle.startDate) {
+      const start = new Date(cycle.startDate);
+      const phaseColor = (PHASE_COLORS as any)[cycle.phase?.toUpperCase()] || theme.colors.accent;
+      
+      for (let i = 0; i < cycle.totalLength; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const dStr = d.toISOString().split('T')[0];
+        
+        marks[dStr] = {
+          color: i < cycle.periodDuration ? `${PHASE_COLORS.MENSTRUAL}33` : `${phaseColor}22`,
+          textColor: theme.colors.text,
+          startingDay: i === 0,
+          endingDay: i === cycle.totalLength - 1,
+        };
+      }
+    }
+
+    // 2. Marcar misiones con puntos
     if (Array.isArray(missions)) {
       missions.forEach(m => {
         if (!m.createdAt) return;
         const date = new Date(m.createdAt).toISOString().split('T')[0];
+        const existing = marks[date] || {};
         marks[date] = { 
+          ...existing,
           marked: true, 
-          dotColor: theme?.colors?.accent || '#CFAA3C',
-          selected: date === selectedDay,
-          selectedColor: date === selectedDay ? (theme?.colors?.accent || '#CFAA3C') : undefined
+          dotColor: theme.colors.accent,
         };
       });
     }
 
+    // 3. Resaltar día seleccionado
     const activeDay = selectedDay || today;
-    if (!marks[activeDay]) {
-      marks[activeDay] = { selected: true, selectedColor: theme?.colors?.accent || '#CFAA3C' };
-    } else {
-      marks[activeDay] = { ...marks[activeDay], selected: true, selectedColor: theme?.colors?.accent || '#CFAA3C' };
-    }
+    const existingActive = marks[activeDay] || {};
+    marks[activeDay] = { 
+      ...existingActive, 
+      selected: true, 
+      selectedColor: theme.colors.accent,
+      selectedTextColor: theme.colors.background
+    };
+    
     setMarkedDates(marks);
   };
 
@@ -97,35 +128,38 @@ export default function CalendarScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>Calendario Táctico</Text>
-            <Text style={[styles.subtitle, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>Anticipación es Victoria</Text>
+            <Text style={[styles.title, { color: theme?.colors.accent, fontFamily: theme.typography.titleFont, fontWeight: '800' }]}>
+              MATRIZ TÁCTICA {theme.visuals.emojiSet.tabs?.matriz || ''}
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textMuted, fontFamily: theme.typography.boldFont }]}>Anticipación es Victoria</Text>
           </View>
 
           <MotiView 
-            from={{ opacity: 0, scale: 0.9 }}
+            from={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             style={[styles.calendarCard, { 
-              backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', 
-              borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)',
-              shadowColor: theme?.colors?.accent || '#CFAA3C' 
+              backgroundColor: theme.colors.card, 
+              borderColor: 'rgba(255,255,255,0.05)',
+              shadowColor: theme.colors.accent 
             }]}
           >
             <Calendar
+              markingType={'period'}
               theme={{
                 backgroundColor: 'transparent',
                 calendarBackground: 'transparent',
-                textSectionTitleColor: theme?.colors?.accent || '#CFAA3C',
-                selectedDayBackgroundColor: theme?.colors?.accent || '#CFAA3C',
-                selectedDayTextColor: theme?.colors?.background || '#044422',
-                todayTextColor: theme?.colors?.accent || '#CFAA3C',
-                dayTextColor: theme?.colors?.text || '#FFF',
-                textDisabledColor: theme?.colors?.border || 'rgba(255,255,255,0.1)',
-                dotColor: theme?.colors?.accent || '#CFAA3C',
-                monthTextColor: theme?.colors?.accent || '#CFAA3C',
-                indicatorColor: theme?.colors?.accent || '#CFAA3C',
-                textDayFontFamily: theme?.typography?.bodyFont,
-                textMonthFontFamily: theme?.typography?.boldFont,
-                textDayHeaderFontFamily: theme?.typography?.boldFont,
+                textSectionTitleColor: theme.colors.accent,
+                selectedDayBackgroundColor: theme.colors.accent,
+                selectedDayTextColor: theme.colors.background,
+                todayTextColor: theme.colors.accent,
+                dayTextColor: theme.colors.text,
+                textDisabledColor: 'rgba(255,255,255,0.1)',
+                dotColor: theme.colors.accent,
+                monthTextColor: theme.colors.accent,
+                indicatorColor: theme.colors.accent,
+                textDayFontFamily: theme.typography.bodyFont,
+                textMonthFontFamily: theme.typography.boldFont,
+                textDayHeaderFontFamily: theme.typography.boldFont,
               }}
               markedDates={markedDates}
               onDayPress={day => setSelectedDay(day.dateString)}

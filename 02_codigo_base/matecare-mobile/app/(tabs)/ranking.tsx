@@ -78,7 +78,9 @@ export default function RankingScreen() {
     <LinearGradient colors={[theme.colors.background, theme.colors.primary]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.text, fontFamily: theme.typography.titleFont }]}>TOP OPERATIVOS</Text>
+          <Text style={[styles.title, { color: theme.colors.text, fontFamily: theme.typography.titleFont, fontWeight: '800' }]}>
+            TOP OPERATIVOS {theme.visuals.emojiSet.tabs?.ranking || ''}
+          </Text>
           <Text style={[styles.subtitle, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>MATECARE GLOBAL RANKING</Text>
         </View>
 

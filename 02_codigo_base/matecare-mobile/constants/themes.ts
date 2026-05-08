@@ -40,6 +40,17 @@ export interface ThemeDefinition {
       rec: string;
       status: string;
       phase: string;
+      tabs: {
+        centro: string;
+        chat: string;
+        vision: string;
+        matriz: string;
+        ranking: string;
+        profile: string;
+        sleep: string;
+        mood: string;
+        steps: string;
+      };
     };
     tabIcons: {
       centro: string;
@@ -91,7 +102,18 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
         mission: '🌿',
         rec: '✨',
         status: '🧘',
-        phase: '🧪'
+        phase: '🧪',
+        tabs: {
+          centro: '🏡',
+          chat: '🧠',
+          vision: '🌿',
+          matriz: '📅',
+          ranking: '🏅',
+          profile: '🌱',
+          sleep: '🌙',
+          mood: '😌',
+          steps: '🚶'
+        }
       },
       tabIcons: {
         centro: 'leaf',
@@ -141,7 +163,18 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
         mission: '🔮',
         rec: '🪄',
         status: '🌙',
-        phase: '💎'
+        phase: '💎',
+        tabs: {
+          centro: '🌙',
+          chat: '🔮',
+          vision: '👁️',
+          matriz: '🌊',
+          ranking: '✨',
+          profile: '🦋',
+          sleep: '🌙',
+          mood: '✨',
+          steps: '🦋'
+        }
       },
       tabIcons: {
         centro: 'planet',
@@ -191,7 +224,18 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
         mission: '🐉',
         rec: '🔥',
         status: '⚔️',
-        phase: '🏰'
+        phase: '🏰',
+        tabs: {
+          centro: '⚔️',
+          chat: '🐉',
+          vision: '🔥',
+          matriz: '💥',
+          ranking: '👑',
+          profile: '🐲',
+          sleep: '💤',
+          mood: '🔥',
+          steps: '🐾'
+        }
       },
       tabIcons: {
         centro: 'flame',
@@ -241,7 +285,18 @@ export const THEMES: Record<ThemeType, ThemeDefinition> = {
         mission: '💻',
         rec: '🤖',
         status: '⚡',
-        phase: '💀'
+        phase: '💀',
+        tabs: {
+          centro: '🖥️',
+          chat: '🤖',
+          vision: '📡',
+          matriz: '📊',
+          ranking: '🏆',
+          profile: '👾',
+          sleep: '🔋',
+          mood: '⚡',
+          steps: '🚀'
+        }
       },
       tabIcons: {
         centro: 'grid',

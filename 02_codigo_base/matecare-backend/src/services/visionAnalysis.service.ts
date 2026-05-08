@@ -34,6 +34,7 @@ export interface VisionContext {
   authenticityLabel?: string;
   hasDiscrepancy?: boolean;
   analysisReliable?: boolean;
+  emotionalHistory?: string; // v2.1 — Resumen de tendencias
 }
 
 const DEEPFACE_URL = process.env.DEEPFACE_URL ?? "http://localhost:5001";

@@ -22,6 +22,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -147,6 +149,18 @@ const checkImageQuality = async (uri: string): Promise<QualityCheck> => {
   return { approved: true };
 };
 
+// Componente para los Brackets Tácticos (v2.2)
+const TacticalBracket = ({ position, color }: { position: 'tl' | 'tr' | 'bl' | 'br', color: string }) => {
+  const rotation = { tl: '0deg', tr: '90deg', br: '180deg', bl: '270deg' }[position];
+  return (
+    <View style={[styles.bracket, styles[`bracket_${position}` as keyof typeof styles] as any, { transform: [{ rotate: rotation }] }]}>
+      <Svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <Path d="M2 30V2H30" stroke={color} strokeWidth="3" />
+      </Svg>
+    </View>
+  );
+};
+
 export default function VisionScanScreen() {
   const { theme } = useTheme();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -208,34 +222,51 @@ export default function VisionScanScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.accent, fontFamily: theme.typography.titleFont }]}>
-            LECTURA TÁCTICA
+            LECTURA TÁCTICA {theme.visuals.emojiSet.tabs?.vision || ''}
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textMuted, fontFamily: theme.typography.bodyFont }]}>
             Sincroniza el perfil visual de tu pareja con la inteligencia de MateCare.
           </Text>
         </View>
 
-        <View style={styles.previewContainer}>
-          {selectedImage ? (
-            <View style={styles.imageWrapper}>
-              <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
-              {loading && (
-                <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark">
-                  <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color={theme.colors.accent} />
-                    <Text style={[styles.loadingText, { color: theme.colors.text }]}>Calibrando Perfil...</Text>
-                  </View>
-                </BlurView>
-              )}
-            </View>
-          ) : (
-            <View style={[styles.placeholder, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
-              <Ionicons name="scan-outline" size={60} color={theme.colors.border} />
-              <Text style={[styles.placeholderText, { color: theme.colors.textMuted }]}>
-                Esperando captura
-              </Text>
-            </View>
-          )}
+        <View style={styles.previewWrapper}>
+          {/* Brackets Tácticos */}
+          <TacticalBracket position="tl" color={theme.colors.accent} />
+          <TacticalBracket position="tr" color={theme.colors.accent} />
+          <TacticalBracket position="bl" color={theme.colors.accent} />
+          <TacticalBracket position="br" color={theme.colors.accent} />
+
+          <View style={styles.previewContainer}>
+            {selectedImage ? (
+              <View style={styles.imageWrapper}>
+                {loading && (
+                  <MotiView
+                    from={{ scale: 1, opacity: 0.6 }}
+                    animate={{ scale: 1.2, opacity: 0 }}
+                    transition={{ loop: true, duration: 1500, type: 'timing' }}
+                    style={[styles.pulseRing, { borderColor: theme.colors.accent }]}
+                  />
+                )}
+                <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+                
+                {loading && (
+                  <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark">
+                    <View style={styles.loadingOverlay}>
+                      <ActivityIndicator size="large" color={theme.colors.accent} />
+                      <Text style={[styles.loadingText, { color: theme.colors.text }]}>CALIBRANDO...</Text>
+                    </View>
+                  </BlurView>
+                )}
+              </View>
+            ) : (
+              <View style={[styles.placeholder, { backgroundColor: theme.colors.card }]}>
+                <Ionicons name="scan-outline" size={60} color={theme.colors.border} />
+                <Text style={[styles.placeholderText, { color: theme.colors.textMuted }]}>
+                  ESPERANDO CAPTURA
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {!loading && !result && (
@@ -316,34 +347,46 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 24, paddingTop: 60, alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
-  title: { fontSize: 24, fontWeight: '800', letterSpacing: 3, marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: 4, marginBottom: 8 },
   subtitle: { fontSize: 13, textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 },
-  previewContainer: {
-    width: width - 48,
-    height: width - 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginBottom: 32,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
+  previewWrapper: {
+    width: width * 0.85,
+    height: width * 0.85,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
   },
-  imageWrapper: { width: '100%', height: '100%' },
+  previewContainer: {
+    width: width * 0.7,
+    height: width * 0.7,
+    borderRadius: (width * 0.7) / 2,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#000',
+  },
+  bracket: { position: 'absolute', width: 30, height: 30 },
+  bracket_tl: { top: 0, left: 0 },
+  bracket_tr: { top: 0, right: 0 },
+  bracket_bl: { bottom: 0, left: 0 },
+  bracket_br: { bottom: 0, right: 0 },
+  pulseRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 4,
+    borderRadius: (width * 0.7) / 2,
+    zIndex: 1,
+  },
+  imageWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
   imagePreview: { width: '100%', height: '100%' },
   placeholder: {
     width: '100%',
     height: '100%',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { marginTop: 12, fontSize: 14, fontWeight: '600' },
+  placeholderText: { marginTop: 12, fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   loadingOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  loadingText: { fontSize: 14, fontWeight: '600', letterSpacing: 1 },
+  loadingText: { fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   actionRow: { flexDirection: 'row', gap: 16 },
   mainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16, gap: 8 },
   secondaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16, borderWidth: 1.5, gap: 8 },

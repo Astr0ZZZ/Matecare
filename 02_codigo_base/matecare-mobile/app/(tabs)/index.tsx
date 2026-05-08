@@ -159,7 +159,7 @@ export default function Dashboard() {
               <View style={styles.headerTop}>
                 <View style={{ flex: 1, marginRight: 15 }}>
                   <Text style={[styles.greeting, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>{getTacticalRank(userPoints)}</Text>
-                  <Text style={[styles.userName, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont }]} numberOfLines={1}>
+                  <Text style={[styles.userName, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont, fontWeight: '800' }]} numberOfLines={1}>
                     {userPoints} PTS ACUMULADOS
                   </Text>
                   <View style={[styles.rankBar, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
@@ -178,7 +178,7 @@ export default function Dashboard() {
 
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={{ fontSize: 18, marginRight: 10 }}>{theme?.visuals?.emojiSet?.status || '🧘'}</Text>
+                <Text style={{ fontSize: 18, marginRight: 10 }}>{theme?.visuals?.emojiSet?.tabs?.centro || '🏡'}</Text>
                 <Text style={[styles.sectionTitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>{theme?.visuals?.hudName || 'HUD'}</Text>
               </View>
               <CycleCompassHUD 
@@ -192,10 +192,37 @@ export default function Dashboard() {
               <View style={styles.sectionHeader}>
                 <Text style={{ fontSize: 18, marginRight: 10 }}>{theme?.visuals?.emojiSet?.mission || '🌿'}</Text>
                 <Text style={[styles.sectionTitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>EDICTOS TÁCTICOS</Text>
-                <TouchableOpacity onPress={handleResetMissions} style={styles.resetButton}>
-                  <Ionicons name="refresh-circle" size={24} color={theme?.colors?.accent || '#CFAA3C'} />
-                </TouchableOpacity>
+                {/* 
+                  [NOTE] El sistema de Nivel/XP está desactivado hasta que se integre la lógica de rangos en el backend.
+                  Los puntos actuales (userPoints) se muestran en la cabecera superior.
+                */}
+                {/* 
+                <View style={[styles.xpBadge, { backgroundColor: (theme?.colors?.accent || '#CFAA3C') + '22' }]}>
+                  <Text style={[styles.xpText, { color: theme?.colors?.accent || '#CFAA3C' }]}>NIVEL 12</Text>
+                </View> 
+                */}
               </View>
+
+              {/* 
+              <View style={styles.xpContainer}>
+                <View style={styles.xpHeader}>
+                  <Text style={[styles.xpLabel, { color: theme?.colors?.textMuted }]}>PROGRESO DE RANGO</Text>
+                  <Text style={[styles.xpValue, { color: theme?.colors?.accent }]}>750 / 1000 XP</Text>
+                </View>
+                <View style={[styles.xpBarBg, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                  <MotiView 
+                    from={{ width: '0%' }}
+                    animate={{ width: '75%' }}
+                    transition={{ type: 'timing', duration: 1500 }}
+                    style={[styles.xpBarFill, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }]}
+                  />
+                </View>
+              </View> 
+              */}
+
+              <TouchableOpacity onPress={handleResetMissions} style={styles.resetButton}>
+                <Ionicons name="refresh-circle" size={24} color={theme?.colors?.accent || '#CFAA3C'} />
+              </TouchableOpacity>
               
               {missions.length > 0 ? (
                 missions.map((mission, index) => (
@@ -248,10 +275,18 @@ const styles = StyleSheet.create({
   userName: { fontSize: 26, marginTop: 4 },
   section: { marginBottom: 35 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', letterSpacing: 1.5, marginLeft: 10 },
+  sectionTitle: { fontSize: 13, letterSpacing: 2, fontWeight: '800' },
+  xpBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 'auto' },
+  xpText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  xpContainer: { marginBottom: 20, paddingHorizontal: 4 },
+  xpHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  xpLabel: { fontSize: 10, letterSpacing: 1, fontWeight: '700' },
+  xpValue: { fontSize: 10, fontWeight: 'bold' },
+  xpBarBg: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  xpBarFill: { height: '100%', borderRadius: 3 },
+  missionCard: { marginTop: 10 },
   emptyCard: { padding: 40, borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center' },
   rankBar: { height: 4, borderRadius: 2, marginTop: 8, overflow: 'hidden' },
   rankProgress: { height: '100%' },
   resetButton: { marginLeft: 10, padding: 4 },
 });
-

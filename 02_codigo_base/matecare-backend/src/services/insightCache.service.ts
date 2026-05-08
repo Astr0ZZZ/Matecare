@@ -57,11 +57,15 @@ function buildInsightPrompt(req: InsightRequest): string {
   return `Eres MateCare, asistente de inteligencia emocional. Genera 3 consejos tácticos.
 
 ${vision ? `
-## CONTEXTO DE VISIÓN (Prioridad Máxima)
-A través del análisis visual, hemos detectado que ella ${EMOTION_CONTEXT_MAP[vision.dominantEmotion] || 'está tranquila'}.
-- Emoción dominante: ${vision.dominantEmotion} (Confianza: ${Math.round((vision.faceConfidence || 0) * 100)}%)
-- Edad estimada: ${vision.estimatedAge} años.
-*INSTRUCCIÓN:* Si la situación de chat parece normal pero la visión indica estrés o tristeza, prioriza lo que dice la visión.` : ''}
+## CONTEXTO DE VISIÓN v2.1 (Prioridad Máxima)
+A través del análisis visual avanzado, hemos detectado:
+- Estado detectado: ${vision.dominantEmotion} (Confianza: ${Math.round((vision.faceConfidence || 0) * 100)}%)
+- Autenticidad: ${vision.hasDiscrepancy ? '⚠️ DISCREPANCIA DETECTADA (la emoción mostrada es falsa/social)' : vision.isSuppressed ? '⚡ SUPRESIÓN (está conteniendo su emoción)' : 'Auténtica'}
+${vision.hasDiscrepancy ? '- INDICACIÓN: Ella muestra una cara, pero siente otra cosa. Ignora la superficie y responde a la necesidad oculta.' : ''}
+- Contexto ambiental: ${vision.sceneCategory || vision.environment}
+- Lenguaje corporal: ${vision.bodyLanguage || 'n/a'}
+${vision.emotionalHistory ? `- Tendencia reciente: ${vision.emotionalHistory}` : ''}
+` : ''}
 
 ## PERFIL PSICOLÓGICO
 - Tipo MBTI: ${req.mbtiType} — ${mbtiDesc}

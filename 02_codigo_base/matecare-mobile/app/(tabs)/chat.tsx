@@ -110,30 +110,48 @@ export default function Chat() {
             removeClippedSubviews={false}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             renderItem={({ item }) => (
-              <MotiView 
-                from={{ opacity: 0, scale: 0.9, translateX: item.emisor === 'ia' ? -20 : 20 }}
-                animate={{ opacity: 1, scale: 1, translateX: 0 }}
-                style={[
-                  styles.bubble,
-                  item.emisor === 'ia' 
-                    ? [styles.aiBubble, { backgroundColor: theme?.colors?.card || 'rgba(255,255,255,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }] 
-                    : [styles.userBubble, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }]
-                ]}
-              >
-                <Text>
-                  {item.text ? renderFormattedText(item.text, item.emisor === 'ia') : null}
+              <View style={[styles.messageWrapper, item.emisor === 'ia' ? { alignSelf: 'flex-start' } : { alignSelf: 'flex-end' }]}>
+                {item.emisor === 'ia' && (
+                  <View style={styles.botHeader}>
+                    <Text style={[styles.botName, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>MATECARE AI</Text>
+                    <View style={styles.onlineDot} />
+                  </View>
+                )}
+                
+                <MotiView 
+                  from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                  animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                  style={[
+                    styles.bubble,
+                    item.emisor === 'ia' 
+                      ? [styles.aiBubble, { backgroundColor: theme?.colors?.card || 'rgba(255,255,255,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }] 
+                      : [styles.userBubble, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }]
+                  ]}
+                >
+                  <Text>
+                    {item.text ? renderFormattedText(item.text, item.emisor === 'ia') : null}
+                  </Text>
+                </MotiView>
+                
+                <Text style={[styles.timestamp, { alignSelf: item.emisor === 'ia' ? 'flex-start' : 'flex-end', color: theme.colors.textMuted }]}>
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
-              </MotiView>
+              </View>
             )}
             ListEmptyComponent={() => (
               <Text style={[styles.emptyText, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>Inicia la conversación táctica...</Text>
             )}
           />
 
-          <View style={[styles.inputContainer, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderTopColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}>
+          <View style={[styles.inputContainer, { backgroundColor: theme?.colors?.background, borderTopColor: 'rgba(255,255,255,0.1)' }]}>
+            {/* 
+            <TouchableOpacity style={styles.attachButton}>
+              <Ionicons name="mic-outline" size={24} color={theme.colors.textMuted} />
+            </TouchableOpacity> 
+            */}
             <TextInput 
-              style={[styles.input, { backgroundColor: theme?.colors?.background || '#044422', color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}
-              placeholder="Pregúntale algo a la IA..."
+              style={[styles.input, { backgroundColor: 'rgba(255,255,255,0.05)', color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}
+              placeholder="Escribe tu mensaje..."
               placeholderTextColor={theme?.colors?.textMuted || '#8F8F8F'}
               value={inputText}
               onChangeText={setInputText}
@@ -147,7 +165,7 @@ export default function Chat() {
               onPress={handleSend}
               disabled={cargando}
             >
-              {cargando ? <ActivityIndicator color="#000" size="small" /> : <Ionicons name="send" size={20} color="#000" />}
+              {cargando ? <ActivityIndicator color="#000" size="small" /> : <Ionicons name="send" size={18} color="#000" />}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -159,17 +177,23 @@ export default function Chat() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 },
-  title: { fontSize: 18 },
-  subtitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  header: { padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 0.5 },
+  title: { fontSize: 18, fontWeight: '800', letterSpacing: 2 },
+  subtitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 2 },
   onlineBadge: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#4CAF50', borderWidth: 2 },
   messageList: { padding: SPACING.lg, paddingBottom: 20 },
-  bubble: { maxWidth: '85%', padding: SPACING.md, borderRadius: RADIUS.lg, marginBottom: SPACING.md },
-  aiBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 0, borderWidth: 1 },
-  userBubble: { alignSelf: 'flex-end', borderBottomRightRadius: 0 },
+  messageWrapper: { marginBottom: 20, maxWidth: '85%' },
+  botHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, marginLeft: 4 },
+  botName: { fontSize: 10, letterSpacing: 2 },
+  onlineDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#4CAF50', marginLeft: 6 },
+  bubble: { padding: 16, borderRadius: 20 },
+  aiBubble: { borderTopLeftRadius: 4, borderWidth: 1 },
+  userBubble: { borderTopRightRadius: 4 },
   messageText: { fontSize: 15, lineHeight: 22 },
-  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 14 },
-  inputContainer: { flexDirection: 'row', padding: SPACING.md, alignItems: 'center', borderTopWidth: 1 },
-  input: { flex: 1, height: 45, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, fontSize: 14, marginRight: SPACING.sm },
-  sendButton: { width: 45, height: 45, borderRadius: 22.5, justifyContent: 'center', alignItems: 'center' },
+  timestamp: { fontSize: 10, marginTop: 4, opacity: 0.6, marginHorizontal: 8 },
+  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 13, letterSpacing: 1 },
+  inputContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', borderTopWidth: 0.5 },
+  attachButton: { marginRight: 12 },
+  input: { flex: 1, height: 48, borderRadius: 24, paddingHorizontal: 20, fontSize: 15, marginRight: 12 },
+  sendButton: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
 });

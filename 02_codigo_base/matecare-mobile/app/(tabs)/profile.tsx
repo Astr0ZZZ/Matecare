@@ -94,9 +94,9 @@ export default function Profile() {
               animate={{ opacity: 1, scale: 1 }} 
               style={[styles.avatarPlaceholder, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}
             >
-              <Ionicons name={theme?.visuals?.tabIcons?.profile as any || 'person'} size={40} color={theme?.colors?.accent || '#CFAA3C'} />
+              <Text style={{ fontSize: 32 }}>{theme.visuals.emojiSet.tabs?.profile || '👤'}</Text>
             </MotiView>
-            <Text style={[styles.title, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont }]}>{userName}</Text>
+            <Text style={[styles.title, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.titleFont, fontWeight: '800' }]}>{userName}</Text>
             <Text style={[styles.subtitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>ID: {userId}</Text>
           </View>
 
@@ -160,6 +160,7 @@ export default function Profile() {
           </TouchableOpacity>
 
           <Text style={[styles.versionText, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>MATECARE v1.0.0 - GEMINI 3 ENGINE</Text>
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
