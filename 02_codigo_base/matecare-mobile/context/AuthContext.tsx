@@ -30,6 +30,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[AuthContext] Sesión inicial cargada:', !!initialSession);
     });
 
+    const hasRegisteredPush = { current: false };
+
     // 2. Escuchar cambios
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
@@ -37,8 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       console.log('[AuthContext] Cambio detectado:', _event, !!currentSession);
       
-      if (currentSession) {
+      if (currentSession && !hasRegisteredPush.current) {
+        hasRegisteredPush.current = true;
         import('../services/notifications').then(m => m.registerPushToken());
+      }
+
+      if (!currentSession) {
+        hasRegisteredPush.current = false;
       }
     });
 

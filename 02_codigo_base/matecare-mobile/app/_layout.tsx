@@ -6,8 +6,15 @@ import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { apiFetch } from '../services/api';
+import * as Notifications from 'expo-notifications';
+import { LogBox } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ToastProvider } from '../context/ToastContext';
+
+// Silenciar advertencia de notificaciones en Expo Go
+LogBox.ignoreLogs(['expo-notifications', 'remote notifications']);
+
+
 
 SplashScreen.preventAutoHideAsync();
 
@@ -93,9 +100,20 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+      } as any),
+    });
+
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
 
+  console.log('[RootLayout] Renderizando...', { loaded, error });
   if (!loaded && !error) return null;
 
   return (

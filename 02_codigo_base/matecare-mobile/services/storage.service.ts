@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 export const uploadMissionPhoto = async (userId: string, missionId: string, localUri: string) => {

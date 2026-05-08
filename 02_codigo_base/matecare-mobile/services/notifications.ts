@@ -1,8 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import { isDevice } from 'expo-device';
 import { apiFetch } from './api';
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
+/**
+ * Registra el token de notificaciones push del dispositivo en el backend.
+ * Nota: En Expo Go SDK 53+, las notificaciones remotas tienen soporte limitado.
+ */
 export async function registerPushToken() {
   if (!isDevice) {
     console.log('[NOTIFICATIONS] Debe ser un dispositivo físico para notificaciones push');
@@ -19,27 +23,30 @@ export async function registerPushToken() {
     }
     
     if (finalStatus !== 'granted') {
-      console.log('[NOTIFICATIONS] Permiso denegado');
+      console.log('[NOTIFICATIONS] Permiso de notificaciones denegado');
       return;
     }
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('[NOTIFICATIONS] Token registrado:', token);
+    // Obtener el token de Expo
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
-    await apiFetch('/notifications/register-token', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    });
-
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
+    try {
+      const token = (await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      )).data;
+      
+      console.log('[NOTIFICATIONS] Token obtenido:', token);
+      
+      // Registrar en nuestro backend
+      await apiFetch('/notifications/register-token', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
       });
+    } catch (tokenErr) {
+      console.warn('[NOTIFICATIONS] No se pudo obtener el token (Posible limitación de Expo Go):', tokenErr);
     }
+
   } catch (error) {
-    console.error('[NOTIFICATIONS] Error registrando token:', error);
+    console.error('[NOTIFICATIONS] Error en el flujo de registro:', error);
   }
 }

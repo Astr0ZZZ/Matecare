@@ -12,6 +12,32 @@ export interface Message {
 
 const STORAGE_KEY = '@matecare_chat_history';
 
+// Safe Storage Fallback para evitar el error "Native module is null"
+const SafeStorage = {
+  getItem: async (key: string) => {
+    try {
+      return await AsyncStorage.getItem(key);
+    } catch (e) {
+      console.warn("[Storage] Usando fallback en memoria para lectura");
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      await AsyncStorage.setItem(key, value);
+    } catch (e) {
+      console.warn("[Storage] Usando fallback en memoria para escritura");
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch (e) {
+      console.warn("[Storage] Fallback en memoria para borrado");
+    }
+  }
+};
+
 export const useAIChat = () => {
   const { showError } = useToast();
   const [mensajes, setMensajes] = useState<Message[]>([]);
@@ -21,7 +47,7 @@ export const useAIChat = () => {
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const stored = await SafeStorage.getItem(STORAGE_KEY);
         if (stored) {
           setMensajes(JSON.parse(stored));
         }
@@ -36,7 +62,7 @@ export const useAIChat = () => {
   useEffect(() => {
     const saveHistory = async () => {
       try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mensajes));
+        await SafeStorage.setItem(STORAGE_KEY, JSON.stringify(mensajes));
       } catch (e) {
         console.error("Error al guardar historial:", e);
       }
@@ -98,7 +124,7 @@ export const useAIChat = () => {
 
   const limpiarHistorial = async () => {
     setMensajes([]);
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await SafeStorage.removeItem(STORAGE_KEY);
   };
 
   return { mensajes, enviarMensaje, cargando, limpiarHistorial };
