@@ -25,6 +25,7 @@ model User {
   aiInteractions     AIInteraction[]
   notifications      Notification[]
   missions           Mission[]
+  emotionalRecords   EmotionalRecord[]
 }
 
 enum Plan {
@@ -213,5 +214,30 @@ model Mission {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model EmotionalRecord {
+  id                String     @id @default(uuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id])
+
+  // Datos del análisis
+  dominantEmotion   String
+  confidence        Float      @default(0)
+  isAuthentic       Boolean?   // null = no determinable
+  isSuppressed      Boolean    @default(false)
+  hasDiscrepancy    Boolean    @default(false)
+  authenticityLabel String
+  rawEmotions       Json       @default("{}")
+
+  // Contexto en el momento del análisis
+  phase             CyclePhase
+  environment       String
+  analysisReliable  Boolean    @default(true)
+
+  createdAt         DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, dominantEmotion])
 }
 

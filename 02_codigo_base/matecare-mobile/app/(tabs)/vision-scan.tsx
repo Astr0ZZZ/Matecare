@@ -36,7 +36,11 @@ export function useVisionChat() {
   const [result, setResult] = useState<{
     response: string;
     emotionDetected: string;
+    authenticityLabel?: string;
+    isSuppressed?: boolean;
+    hasDiscrepancy?: boolean;
     bodyLanguage?: string;
+    sceneCategory?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +67,11 @@ export function useVisionChat() {
       setResult({
         response: chatData.response,
         emotionDetected: chatData.emotionDetected || data.traits?.dominantEmotion || "Neutral",
+        authenticityLabel: chatData.authenticityLabel,
+        isSuppressed: chatData.isSuppressed,
+        hasDiscrepancy: chatData.hasDiscrepancy,
         bodyLanguage: chatData.bodyLanguage,
+        sceneCategory: chatData.sceneCategory,
       });
 
     } catch (e: any) {
@@ -81,6 +89,63 @@ export function useVisionChat() {
 
   return { processPhoto, loading, result, error, reset };
 }
+
+/**
+ * Estima el brillo de una imagen de forma rápida.
+ * Usa una muestra del thumbnail en Base64 para evitar leer toda la imagen.
+ * Retorna valor 0-255.
+ */
+const estimateBrightness = async (uri: string): Promise<number> => {
+  try {
+    const thumb = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 40 } }],
+      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.3 }
+    );
+    const b64 = await FileSystem.readAsStringAsync(thumb.uri, { encoding: 'base64' });
+
+    // Muestrear bytes de la cadena base64 para estimar brillo
+    const binary = atob(b64);
+    const step = Math.max(1, Math.floor(binary.length / 200));
+    let total = 0;
+    let count = 0;
+    for (let i = 0; i < binary.length; i += step) {
+      total += binary.charCodeAt(i);
+      count++;
+    }
+    return count > 0 ? total / count : 128;
+  } catch {
+    return 128; // Valor neutro — no rechazar si falla el sampling
+  }
+};
+
+interface QualityCheck {
+  approved: boolean;
+  reason?: string;
+  suggestion?: string;
+}
+
+const checkImageQuality = async (uri: string): Promise<QualityCheck> => {
+  const brightness = await estimateBrightness(uri);
+
+  if (brightness < 40) {
+    return {
+      approved: false,
+      reason: 'Poca iluminación',
+      suggestion: 'Muévete a un lugar más iluminado o enciende la luz.',
+    };
+  }
+
+  if (brightness > 230) {
+    return {
+      approved: false,
+      reason: 'Sobreexposición',
+      suggestion: 'Evita la luz solar directa detrás de la cámara.',
+    };
+  }
+
+  return { approved: true };
+};
 
 export default function VisionScanScreen() {
   const { theme } = useTheme();
@@ -114,6 +179,19 @@ export default function VisionScanScreen() {
       } catch (e) {}
 
       setSelectedImage(uri);
+
+      // NUEVO — Quality gate local antes de subir
+      const quality = await checkImageQuality(uri);
+      if (!quality.approved) {
+        Alert.alert(
+          quality.reason!,
+          quality.suggestion,
+          [{ text: 'Entendido', style: 'default' }]
+        );
+        setSelectedImage(null);
+        return; 
+      }
+
       processPhoto(uri);
     }
   };
@@ -190,11 +268,31 @@ export default function VisionScanScreen() {
         {result && (
           <View style={[styles.resultCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.tagsRow}>
-              <View style={[styles.tag, { backgroundColor: 'rgba(207, 170, 60, 0.15)' }]}>
+              <View style={[styles.tag, { backgroundColor: 'rgba(207, 170, 100, 0.15)' }]}>
                 <Text style={[styles.tagText, { color: theme.colors.accent }]}>
                   {result.emotionDetected.toUpperCase()}
                 </Text>
               </View>
+
+              {result.isSuppressed && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 165, 0, 0.15)' }]}>
+                  <Text style={[styles.tagText, { color: '#FFA500' }]}>CONTENIDA</Text>
+                </View>
+              )}
+
+              {result.hasDiscrepancy && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 80, 80, 0.15)' }]}>
+                  <Text style={[styles.tagText, { color: '#FF5050' }]}>DISCREPANCIA DETECTADA</Text>
+                </View>
+              )}
+
+              {result.authenticityLabel && result.authenticityLabel.toLowerCase() !== result.emotionDetected.toLowerCase() && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>
+                    {result.authenticityLabel.toUpperCase()}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Text style={[styles.responseText, { color: theme.colors.text, fontFamily: theme.typography.bodyFont }]}>

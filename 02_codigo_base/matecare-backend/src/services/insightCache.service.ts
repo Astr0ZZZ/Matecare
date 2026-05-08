@@ -45,8 +45,8 @@ const EMOTION_CONTEXT_MAP: Record<string, string> = {
 };
 
 function buildCacheKey(req: InsightRequest): string {
-  const emotion = req.visionContext?.dominantEmotion || 'none';
-  return `${req.mbtiType}_${req.phase}_${req.context}_${emotion}_${req.affectionStyle}`;
+  // attachmentStyle es crítico — un INFJ_ANXIOUS necesita un insight diferente a INFJ_SECURE
+  return `${req.mbtiType}_${req.phase}_${req.context}_${req.affectionStyle}_${req.conflictStyle}_${req.attachmentStyle}`;
 }
 
 function buildInsightPrompt(req: InsightRequest): string {
@@ -59,7 +59,7 @@ function buildInsightPrompt(req: InsightRequest): string {
 ${vision ? `
 ## CONTEXTO DE VISIÓN (Prioridad Máxima)
 A través del análisis visual, hemos detectado que ella ${EMOTION_CONTEXT_MAP[vision.dominantEmotion] || 'está tranquila'}.
-- Emoción dominante: ${vision.dominantEmotion} (Confianza: ${vision.emotionConfidence}%)
+- Emoción dominante: ${vision.dominantEmotion} (Confianza: ${Math.round((vision.faceConfidence || 0) * 100)}%)
 - Edad estimada: ${vision.estimatedAge} años.
 *INSTRUCCIÓN:* Si la situación de chat parece normal pero la visión indica estrés o tristeza, prioriza lo que dice la visión.` : ''}
 
@@ -146,4 +146,28 @@ export function detectInsightContext(userMessage: string): InsightContext {
   if (/hablar|conversa|important/.test(msg)) return 'comunicacion_importante';
   if (/mal d[ií]a|triste|estresad/.test(msg)) return 'dia_dificil';
   return 'plan_romantico';
+}
+
+/**
+ * Invalida el insight de una combinación específica cuando el usuario
+ * indica que no fue útil. Fuerza regeneración en el próximo request.
+ */
+export async function invalidateInsight(cacheKey: string): Promise<void> {
+  // Limpiar Redis
+  if (isRedisConnected) {
+    try {
+      await redis.del(`insight:${cacheKey}`);
+    } catch (e) { /* Redis opcional */ }
+  }
+
+  // Limpiar memory cache
+  memoryCache.delete(`insight:${cacheKey}`);
+
+  // Marcar en DB como expirado (no borrar — mantener historial)
+  await prisma.personalityInsight.updateMany({
+    where: { cacheKey },
+    data: { expiresAt: new Date() }, // expirado = se regenerará en próximo request
+  });
+
+  console.log(`[Cache] Insight invalidado: ${cacheKey}`);
 }

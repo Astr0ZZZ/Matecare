@@ -2,6 +2,14 @@ import { supabase } from '../lib/supabase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
+const ENDPOINT_TIMEOUTS: Record<string, number> = {
+  '/ai/vision-chat': 35_000,       // Vision puede tardar hasta 30s con VPS frío
+  '/ai/calibrate-profile': 35_000, // Igual
+  '/ai/chat': 20_000,              // Chat estándar
+  '/ai/recommendation': 15_000,    // Recomendación diaria
+  default: 20_000,
+};
+
 export async function apiFetch(path: string, options?: RequestInit) {
   if (!API_URL) {
     console.warn("⚠️ EXPO_PUBLIC_API_URL no está definida en el entorno.");
@@ -24,13 +32,17 @@ export async function apiFetch(path: string, options?: RequestInit) {
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const fullUrl = `${baseUrl}${cleanPath}`;
-  console.log(`[API_FETCH] Calling: ${fullUrl}`);
   
   const controller = new AbortController();
+  
+  // Determinar timeout según el path
+  const matchedKey = Object.keys(ENDPOINT_TIMEOUTS).find(k => cleanPath.startsWith(k));
+  const timeoutMs = ENDPOINT_TIMEOUTS[matchedKey || 'default'];
+
   const timeoutId = setTimeout(() => {
-    console.warn(`[API] TIMEOUT alcanzado (20s) para: ${fullUrl}`);
+    console.warn(`[API] TIMEOUT (${timeoutMs}ms) para: ${fullUrl}`);
     controller.abort();
-  }, 30000); // 30s timeout para mayor margen
+  }, timeoutMs);
 
   try {
     const response = await fetch(fullUrl, {
@@ -42,6 +54,15 @@ export async function apiFetch(path: string, options?: RequestInit) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
+      // Error especial de quality gate — tiene userMessage del backend
+      if (response.status === 422 && errorData.reason) {
+        const qualityError = new Error(errorData.userMessage || 'Imagen rechazada por calidad');
+        (qualityError as any).reason = errorData.reason;
+        (qualityError as any).isQualityError = true;
+        throw qualityError;
+      }
+
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 

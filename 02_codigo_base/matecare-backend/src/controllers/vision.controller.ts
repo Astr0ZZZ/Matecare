@@ -28,21 +28,47 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
   if (!image) return res.status(400).json({ error: "Se requiere el campo 'image' en base64" });
 
   try {
-    const [profile, personalityProfile] = await Promise.all([
+    const [profile, personalityProfile, historyData] = await Promise.all([
       prisma.partnerProfile.findUnique({ where: { userId } }),
       prisma.personalityProfile.findUnique({ where: { userId } }),
+      (prisma as any).emotionalRecord.findMany({
+        where: { 
+          userId, 
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } 
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      })
     ]);
+
+    const emotionalHistory = (historyData as any[]).length > 0
+      ? (historyData as any[]).map(r => `${r.createdAt.toISOString().split('T')[0]}: ${r.authenticityLabel}`).join(' | ')
+      : 'Sin registros previos.';
 
     if (!profile?.lastPeriodDate) {
       return res.status(422).json({ error: "Perfil de pareja incompleto (falta ciclo)" });
     }
 
     let vision: VisionContext;
+
     try {
       console.log(`[VISION] Analizando foto para chat - Usuario: ${userId}`);
       vision = await analyzePartnerPhoto(image);
-    } catch (visionError) {
-      console.warn("[VISION] DeepFace no disponible en chat, usando contexto neutro.");
+    } catch (visionError: any) {
+      if (visionError.name === 'ImageQualityError') {
+        // Imagen rechazada por el quality gate — informar al usuario, no usar fallback
+        const reasonMap: Record<string, string> = {
+          imagen_oscura: 'La foto tiene poca iluminación. Busca un lugar más iluminado.',
+          sobreexpuesta: 'La foto tiene demasiada luz directa. Evita el flash o el sol directo.',
+          imagen_borrosa: 'La foto está borrosa. Mantén el teléfono estable al tomar la foto.',
+        };
+        return res.status(422).json({
+          error: 'imagen_rechazada',
+          reason: visionError.reason,
+          userMessage: reasonMap[visionError.reason] || 'La foto no tiene la calidad suficiente para el análisis.',
+        });
+      }
+      console.warn("[VISION] DeepFace no disponible en chat, usando contexto neutro:", visionError.message);
       vision = neutralVisionContext();
     }
 
@@ -60,7 +86,10 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       mbtiType: (personalityProfile?.mbtiType as any),
       attachmentStyle: (personalityProfile?.attachmentStyle as any),
       preferences: personalityProfile?.preferences as any,
-      visionContext: vision,
+      visionContext: {
+        ...vision,
+        emotionalHistory
+      },
     });
 
     const finalUserMessage = userMessage?.trim() || "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
@@ -99,10 +128,35 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       console.warn("[VISION] No se pudo persistir el contexto profundo, continuando...");
     }
 
+    // 7. Persistir registro emocional para historial y tendencias
+    // (fire-and-forget — no bloqueamos la respuesta por esto)
+    if (vision.analysisVersion !== '2.0-fallback') {
+      (prisma as any).emotionalRecord.create({
+        data: {
+          userId,
+          dominantEmotion: vision.dominantEmotion,
+          confidence: vision.faceConfidence ?? 0,
+          isAuthentic: vision.isAuthentic ?? null,
+          isSuppressed: vision.isSuppressed ?? false,
+          hasDiscrepancy: vision.hasDiscrepancy ?? false,
+          authenticityLabel: vision.authenticityLabel ?? vision.dominantEmotion,
+          rawEmotions: vision.allEmotions ?? {},
+          phase: cycle.phase,
+          environment: vision.environment,
+          analysisReliable: vision.analysisReliable ?? false,
+        },
+      }).catch((err: any) => console.warn('[Vision] Error guardando EmotionalRecord:', err.message));
+    }
+
     return res.json({
       response: aiResponse,
       visionUsed: true,
       emotionDetected: vision.dominantEmotion,
+      authenticityLabel: vision.authenticityLabel,
+      isSuppressed: vision.isSuppressed,
+      hasDiscrepancy: vision.hasDiscrepancy,
+      bodyLanguage: vision.bodyLanguage,
+      sceneCategory: vision.sceneCategory,
       fromCache: false,
     });
 

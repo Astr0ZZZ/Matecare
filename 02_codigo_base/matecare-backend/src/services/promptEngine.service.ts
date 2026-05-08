@@ -43,6 +43,15 @@ export interface PromptContext {
     timeOfDayHint?: string;
     ambientMood?: string;
     clothingTone?: string;
+    // NUEVO v2.1
+    allEmotions?: Record<string, number>;
+    faceConfidence?: number;
+    isAuthentic?: boolean | null;
+    isSuppressed?: boolean;
+    authenticityLabel?: string;
+    hasDiscrepancy?: boolean;
+    analysisReliable?: boolean;
+    emotionalHistory?: string; // NUEVO v2.1
   };
 }
 
@@ -79,18 +88,9 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const currentPhaseDesc = PHASE_DESCRIPTIONS[ctx.phase];
   const mbtiDesc = ctx.mbtiType ? `${ctx.mbtiType} — ${MBTI_DESCRIPTIONS[ctx.mbtiType]}` : 'Perfil base';
   const attachmentDesc = ctx.attachmentStyle ? ATTACHMENT_DESCRIPTIONS[ctx.attachmentStyle] : 'Estándar';
+  
   const visionBlock = ctx.visionContext
-    ? `
-LECTURA VISUAL AVANZADA (v2.0):
-- Emoción: ${ctx.visionContext.dominantEmotion} (Energía: ${ctx.visionContext.energyAppearance})
-- Postura: ${ctx.visionContext.bodyLanguage || 'desconocida'} (Actividad: ${ctx.visionContext.activityLevel || 'n/a'})
-- Escena: ${ctx.visionContext.sceneCategory || ctx.visionContext.environment} (${ctx.visionContext.lightCondition || 'luz estándar'})
-- Vibra ambiental: ${ctx.visionContext.ambientMood || 'neutra'} (${ctx.visionContext.timeOfDayHint || 'hora n/a'})
-- Estilo: ${ctx.visionContext.style} (${ctx.visionContext.clothingTone || 'tono n/a'})
-
-INSTRUCCIÓN CRÍTICA: Cruza OBLIGATORIAMENTE la fase del ciclo con esta lectura visual enriquecida. 
-Si la lectura visual contradice la fase (ej: fase de calma pero lenguaje corporal tenso), prioriza lo visual. 
-Adapta tu consejo al ambiente y "vibra" detectada (ej: si es un restaurante, da un consejo de etiqueta/conexión; si está en casa descansando, algo de confort).`
+    ? buildVisionBlock(ctx.visionContext)
     : "";
 
   return `Eres MateCare, un copiloto emocional premium y discreto para hombres modernos. 
@@ -203,4 +203,57 @@ export function buildMessages(ctx: PromptContext) {
   }
 
   return messages;
+}
+
+/**
+ * Construye el bloque de contexto visual para el prompt.
+ * V2.1: Incluye análisis de autenticidad y discrepancia.
+ */
+function buildVisionBlock(vc: NonNullable<PromptContext['visionContext']>): string {
+  const vc_label = vc.authenticityLabel || vc.dominantEmotion;
+
+  // Construir distribución emocional si está disponible
+  const emotionDist = vc.allEmotions
+    ? Object.entries(vc.allEmotions)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([e, v]) => `${e}: ${Math.round(v)}%`)
+        .join(' · ')
+    : null;
+
+  // Sección de alerta de discrepancia o supresión
+  let alertBlock = '';
+  if (vc.hasDiscrepancy) {
+    alertBlock = `
+⚠️ DISCREPANCIA EMOCIONAL: Muestra "${vc_label}" pero las señales subyacentes sugieren otra emoción. 
+   Está presentando una emoción diferente a la que realmente siente.
+   PRIORIDAD MÁXIMA: Responde a lo no dicho, no a la expresión superficial.`;
+  } else if (vc.isSuppressed) {
+    alertBlock = `
+⚡ SUPRESIÓN DETECTADA: Está conteniendo activamente la emoción de "${vc.dominantEmotion}".
+   La está gestionando/controlando. Valida eso con delicadeza, no lo ignores.`;
+  }
+
+  if (vc.analysisReliable === false) {
+    alertBlock += `
+⚠️ CONFIANZA LIMITADA: El análisis tiene restricciones por ángulo o iluminación (confianza: ${Math.round((vc.faceConfidence || 0) * 100)}%).
+   Da más peso al historial de chat que a la lectura visual en este caso.`;
+  }
+
+  return `
+LECTURA VISUAL AVANZADA (v2.1):
+- Estado emocional: **${vc_label}** (Energía: ${vc.energyAppearance})${emotionDist ? `\n  Distribución: ${emotionDist}` : ''}
+- Postura corporal: ${vc.bodyLanguage || 'desconocida'} (Actividad: ${vc.activityLevel || 'n/a'})
+- Escena: ${vc.sceneCategory || vc.environment} (${vc.lightCondition || 'luz estándar'}, ${vc.timeOfDayHint || 'hora n/a'})
+- Vibra ambiental: ${vc.ambientMood || 'neutra'}
+- Estilo vestimenta: ${vc.style} / tono ${vc.clothingTone || 'n/a'}
+${vc.emotionalHistory ? `- Tendencia reciente: ${vc.emotionalHistory}` : ''}
+${alertBlock}
+
+INSTRUCCIÓN CRÍTICA: Cruza OBLIGATORIAMENTE la fase del ciclo con esta lectura visual.
+${vc.hasDiscrepancy
+  ? 'La emoción visual CONTRADICE la expresión mostrada — responde a la emoción real, no a la social.'
+  : 'Si la lectura visual contradice la fase esperada, prioriza lo visual sobre la teoría del ciclo.'
+}
+Adapta el consejo al ambiente detectado (restaurante → complicidad íntima, hogar → confort, exterior → espontaneidad).`;
 }
