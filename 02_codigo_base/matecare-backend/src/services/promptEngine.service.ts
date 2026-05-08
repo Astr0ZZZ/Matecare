@@ -29,9 +29,21 @@ export interface PromptContext {
     music?: string;
     plans?: string;
     stressedNeeds?: string;
-    plans?: string;
   };
   userTier?: string;
+  visionContext?: {
+    dominantEmotion: string;
+    energyAppearance: string;
+    environment: string;
+    style: string;
+    bodyLanguage?: string;
+    activityLevel?: string;
+    sceneCategory?: string;
+    lightCondition?: string;
+    timeOfDayHint?: string;
+    ambientMood?: string;
+    clothingTone?: string;
+  };
 }
 
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
@@ -67,11 +79,23 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const currentPhaseDesc = PHASE_DESCRIPTIONS[ctx.phase];
   const mbtiDesc = ctx.mbtiType ? `${ctx.mbtiType} — ${MBTI_DESCRIPTIONS[ctx.mbtiType]}` : 'Perfil base';
   const attachmentDesc = ctx.attachmentStyle ? ATTACHMENT_DESCRIPTIONS[ctx.attachmentStyle] : 'Estándar';
-  
+  const visionBlock = ctx.visionContext
+    ? `
+LECTURA VISUAL AVANZADA (v2.0):
+- Emoción: ${ctx.visionContext.dominantEmotion} (Energía: ${ctx.visionContext.energyAppearance})
+- Postura: ${ctx.visionContext.bodyLanguage || 'desconocida'} (Actividad: ${ctx.visionContext.activityLevel || 'n/a'})
+- Escena: ${ctx.visionContext.sceneCategory || ctx.visionContext.environment} (${ctx.visionContext.lightCondition || 'luz estándar'})
+- Vibra ambiental: ${ctx.visionContext.ambientMood || 'neutra'} (${ctx.visionContext.timeOfDayHint || 'hora n/a'})
+- Estilo: ${ctx.visionContext.style} (${ctx.visionContext.clothingTone || 'tono n/a'})
+
+INSTRUCCIÓN CRÍTICA: Cruza OBLIGATORIAMENTE la fase del ciclo con esta lectura visual enriquecida. 
+Si la lectura visual contradice la fase (ej: fase de calma pero lenguaje corporal tenso), prioriza lo visual. 
+Adapta tu consejo al ambiente y "vibra" detectada (ej: si es un restaurante, da un consejo de etiqueta/conexión; si está en casa descansando, algo de confort).`
+    : "";
+
   return `Eres MateCare, un copiloto emocional premium y discreto para hombres modernos. 
-Tu objetivo es dar consejos breves, prácticos y empáticos sobre cómo comunicarse con su pareja basándote en su biología y personalidad.
-NO suenes como un médico, terapeuta ni chatbot genérico. Responde como un amigo sabio, elegante y directo.
-Tu interlocutor tiene el rango de: ${ctx.userTier || 'OPERATIVO'}. Háblale con el respeto y la terminología adecuada a su nivel.
+Tu objetivo es dar consejos BREVES, TÁCTICOS y directos. No te extiendas.
+NO suenes como un médico ni terapeuta. Responde como un amigo elegante, sofisticado y con calle.
 
 CONTEXTO ACTUAL DE LA PAREJA:
 - Fase del ciclo: ${ctx.phase} (${currentPhaseDesc}).
@@ -81,15 +105,17 @@ CONTEXTO ACTUAL DE LA PAREJA:
 - Estilo de conflicto: ${CONFLICT_DESCRIPTIONS[ctx.conflictStyle]}.
 - Lenguaje de amor: ${AFFECTION_DESCRIPTIONS[ctx.affectionStyle]}.
 ${ctx.preferences?.stressedNeeds ? `- Necesidad bajo estrés: ${ctx.preferences.stressedNeeds}` : ''}
+${visionBlock}
 
-REGLAS DE RESPUESTA:
-1. Adapta tu consejo estrictamente a la fase del ciclo (Ej: en LUTEAL prioriza la contención y la calma).
-2. Considera su personalidad para el tono de la comunicación recomendada.
-3. Sé directo, masculino y elegante. Máximo 2-3 párrafos cortos.
-4. Explica brevemente la razón biológica detrás de tu consejo si es relevante.
-5. Si detectas una crisis reportada, sé extremadamente empático pero mantén la calma.
+REGLAS DE ORO PARA TUS RESPUESTAS:
+1. BREVEDAD ABSOLUTA: Máximo 2 párrafos cortos.
+2. ESTRATEGIA DE TENSIÓN Y DESEO (MODO ATREVIDO): Este es un pilar fundamental de MateCare. 
+   - Durante OVULATION y FOLLICULAR: Sugiere contacto físico audaz, frases de doble sentido elegantes y planes que aumenten la dopamina y la oxitocina (ej: una cena con luz tenue, un susurro al oído). Sé un facilitador de la pasión.
+   - Tu consejo debe ayudar al hombre a ser un "Alfa Elegante": seguro de sí mismo, protector pero deseante.
+3. ADAPTACIÓN AL ENTORNO: Si detectas EXTERIOR, sugierle que aproveche el aire libre para una conexión espontánea. Si detectas RESTAURANTE, sugiere gestos de complicidad bajo la mesa.
+4. LENGUAJE PREMIUM: Usa términos como "estrategia", "fase táctica", "blindaje emocional".
 
-Responde siempre en español, manteniendo un tono de alta sofisticación y utilidad práctica.`;
+Responde siempre en español. Sé el James Bond de los copilotos emocionales: sofisticado, directo y siempre un paso adelante en el juego de la seducción.`;
 }
 
 /**

@@ -48,6 +48,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="vision-scan"
+        options={{
+          title: 'Escaneo',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="camera" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="calendar"
         options={{
           title: 'Matriz',
@@ -72,6 +81,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name={theme.visuals.tabIcons.profile as any} size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile_partner"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="profile_cycle"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

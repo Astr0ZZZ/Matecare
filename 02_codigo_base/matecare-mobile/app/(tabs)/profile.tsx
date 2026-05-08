@@ -110,18 +110,33 @@ export default function Profile() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="settings" size={18} color={theme?.colors?.accent || '#CFAA3C'} />
-              <Text style={[styles.sectionTitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>CONFIGURACIÓN</Text>
+              <Text style={[styles.sectionTitle, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>CONFIGURACIÓN TÁCTICA</Text>
             </View>
             
-            <TouchableOpacity style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} onPress={() => router.push('/(onboarding)/cycle-setup')}>
-              <Ionicons name="calendar" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
-              <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Re-calibrar Ciclo</Text>
+            <TouchableOpacity 
+              style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
+              onPress={() => router.push('/profile_partner')}
+            >
+              <Ionicons name="person-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
+              <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Detalles de Personalidad</Text>
               <Ionicons name="chevron-forward" size={16} color={theme?.colors?.border || 'rgba(255,255,255,0.1)'} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}>
-              <Ionicons name="notifications" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
-              <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Alertas Tácticas</Text>
+            <TouchableOpacity 
+              style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
+              onPress={() => router.push('/profile_cycle')}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
+              <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Métricas del Ciclo</Text>
+              <Ionicons name="chevron-forward" size={16} color={theme?.colors?.border || 'rgba(255,255,255,0.1)'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionRow, { borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]} 
+              onPress={() => router.push('/(onboarding)/cycle-setup')}
+            >
+              <Ionicons name="refresh-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
+              <Text style={[styles.actionText, { color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}>Re-calibrar Ciclo (Setup)</Text>
               <Ionicons name="chevron-forward" size={16} color={theme?.colors?.border || 'rgba(255,255,255,0.1)'} />
             </TouchableOpacity>
           </View>

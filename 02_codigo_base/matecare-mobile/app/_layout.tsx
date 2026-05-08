@@ -55,8 +55,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       if (needsOnboarding && !inOnboardingGroup) {
         // Logueado pero sin perfil -> Onboarding
         router.replace('/(onboarding)/cycle-setup');
-      } else if (!needsOnboarding && (inAuthGroup || inOnboardingGroup)) {
-        // Logueado con perfil -> Dashboard (si está en login u onboarding)
+      } else if (!needsOnboarding && inAuthGroup) {
+        // Logueado con perfil -> Dashboard (si está en login)
         router.replace('/(tabs)');
       }
     }
@@ -69,7 +69,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   // Bloqueo visual durante la verificación
   const isWrongRoute = (!session && !inAuthGroup) || 
                        (session && profileLoaded && needsOnboarding && !inOnboardingGroup) ||
-                       (session && profileLoaded && !needsOnboarding && (inAuthGroup || inOnboardingGroup));
+                       (session && profileLoaded && !needsOnboarding && inAuthGroup);
 
   if (loading || !isLoaded || isTransitioning || isWrongRoute) {
     return (
