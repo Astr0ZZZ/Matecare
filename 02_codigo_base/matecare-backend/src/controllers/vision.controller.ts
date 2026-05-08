@@ -1,13 +1,3 @@
-/**
- * vision.controller.ts
- *
- * Nuevo endpoint: POST /api/ai/vision-chat
- * Recibe la foto, llama a DeepFace, inyecta el contexto visual
- * en el promptEngine existente y devuelve el consejo táctico.
- *
- * Ubicación: matecare-backend/src/controllers/vision.controller.ts
- */
-
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { calculateCycleState } from "../services/cycleEngine.service";
@@ -18,8 +8,10 @@ import {
   neutralVisionContext,
   type VisionContext,
 } from "../services/visionAnalysis.service";
-import type { MBTIType, AttachmentStyle } from "../../../shared/types/personality.types";
-import type { CyclePhase, AffectionStyle, ConflictStyle } from "@prisma/client";
+
+// Tipos locales para evitar fallos de resolución de rutas externas
+type MBTIType = 'INTJ' | 'ENTJ' | 'INFJ' | 'ENFJ' | 'ISTJ' | 'ESTJ' | 'ISFJ' | 'ESFJ' | 'INTP' | 'ENTP' | 'INFP' | 'ENFP' | 'ISTP' | 'ESTP' | 'ISFP' | 'ESFP';
+type AttachmentStyle = 'SECURE' | 'ANXIOUS' | 'AVOIDANT' | 'DISORGANIZED';
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -27,31 +19,15 @@ interface AuthRequest extends Request {
 
 /**
  * POST /api/ai/vision-chat
- * Body: { image: string (base64), userMessage?: string }
  */
 export const handleVisionChat = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "No autenticado" });
 
-  if (!userId) {
-    return res.status(401).json({ error: "No autenticado" });
-  }
-
-  const { image, userMessage } = req.body as {
-    image?: string;
-    userMessage?: string;
-  };
-
-  if (!image) {
-    return res.status(400).json({ error: "Se requiere el campo 'image' en base64" });
-  }
-
-  // Validación básica de tamaño (max ~5MB en base64 ≈ ~3.75MB real)
-  if (image.length > 7_000_000) {
-    return res.status(413).json({ error: "Imagen demasiado grande. Máximo 5MB." });
-  }
+  const { image, userMessage } = req.body as { image?: string; userMessage?: string; };
+  if (!image) return res.status(400).json({ error: "Se requiere el campo 'image' en base64" });
 
   try {
-    // 1. Cargar perfiles en paralelo
     const [profile, personalityProfile] = await Promise.all([
       prisma.partnerProfile.findUnique({ where: { userId } }),
       prisma.personalityProfile.findUnique({ where: { userId } }),
@@ -61,23 +37,17 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       return res.status(422).json({ error: "Perfil de pareja incompleto (falta ciclo)" });
     }
 
-    // 2. Analizar foto con DeepFace (con fallback si el VPS no responde)
     let vision: VisionContext;
     try {
+      console.log(`[VISION] Analizando foto para chat - Usuario: ${userId}`);
       vision = await analyzePartnerPhoto(image);
     } catch (visionError) {
-      console.warn("[Vision] DeepFace no disponible, usando contexto neutro:", visionError);
+      console.warn("[VISION] DeepFace no disponible en chat, usando contexto neutro.");
       vision = neutralVisionContext();
     }
 
-    // 3. Calcular estado del ciclo
-    const cycle = calculateCycleState(
-      profile.lastPeriodDate,
-      profile.cycleLength,
-      profile.periodDuration
-    );
+    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // 4. Construir system prompt CON el bloque visual inyectado
     const systemPrompt = buildSystemPrompt({
       phase: cycle.phase,
       dayOfCycle: cycle.dayOfCycle,
@@ -90,24 +60,15 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       mbtiType: personalityProfile?.mbtiType as MBTIType | undefined,
       attachmentStyle: personalityProfile?.attachmentStyle as AttachmentStyle | undefined,
       preferences: personalityProfile?.preferences as any,
-      // ─── Bloque visual nuevo ───────────────────────────────────────────
       visionContext: vision,
     });
 
-    // 5. Mensaje del usuario (o petición automática si no hay texto)
-    const finalUserMessage =
-      userMessage?.trim() ||
-      "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
+    const finalUserMessage = userMessage?.trim() || "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
+    const messages = [{ role: "user" as const, content: finalUserMessage }];
 
-    const messages = [
-      { role: "user" as const, content: finalUserMessage },
-    ];
-
-    // 6. Llamar a la IA con el sistema enriquecido
     const tier = detectTier(finalUserMessage);
     const aiResponse = await routeToAI(systemPrompt, messages, tier);
 
-    // 7. Responder — NUNCA devolvemos la imagen ni el JSON de DeepFace al cliente
     return res.json({
       response: aiResponse,
       visionUsed: true,
@@ -116,14 +77,13 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     });
 
   } catch (error) {
-    console.error("[Vision] Error en vision-chat:", error);
+    console.error("[VISION] Error crítico en vision-chat:", error);
     return res.status(500).json({ error: "Error interno al procesar la imagen" });
   }
 };
 
 /**
  * POST /api/ai/calibrate-profile
- * Analiza una foto de referencia para establecer los gustos y estilo base de la pareja.
  */
 export const handleProfileCalibration = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
@@ -133,23 +93,30 @@ export const handleProfileCalibration = async (req: AuthRequest, res: Response) 
   if (!image) return res.status(400).json({ error: "Se requiere imagen" });
 
   try {
-    // 1. Analizar con DeepFace v2.0
-    const vision = await analyzePartnerPhoto(image);
+    let vision: VisionContext;
+    let calibrationMethod = 'DEEPFACE';
 
-    // 2. Extraer rasgos persistentes
+    try {
+      console.log(`[VISION] Calibrando perfil - Usuario: ${userId}`);
+      vision = await analyzePartnerPhoto(image);
+    } catch (visionError) {
+      console.warn("[VISION] DeepFace falló en calibración. Aplicando rasgos base de seguridad.");
+      vision = neutralVisionContext();
+      calibrationMethod = 'FALLBACK_NEUTRAL';
+    }
+
     const inferredTraits = {
-      detectedStyle: vision.style,
-      clothingTone: vision.clothingTone,
-      estimatedAge: vision.estimatedAge,
-      // Guardamos la fecha de calibración
+      detectedStyle: vision.style || 'casual',
+      clothingTone: vision.clothingTone || 'neutro',
+      estimatedAge: vision.estimatedAge || 25,
+      calibrationMethod,
       lastCalibration: new Date().toISOString(),
     };
 
-    // 3. Actualizar el perfil de personalidad (campo preferences Json)
     const personality = await prisma.personalityProfile.findUnique({ where: { userId } });
     const currentPrefs = (personality?.preferences as any) || {};
 
-    await prisma.personalityProfile.upsert({
+    const updatedPersonality = await prisma.personalityProfile.upsert({
       where: { userId },
       update: {
         preferences: {
@@ -163,14 +130,18 @@ export const handleProfileCalibration = async (req: AuthRequest, res: Response) 
       }
     });
 
+    console.log(`[VISION] Perfil calibrado con éxito (${calibrationMethod}) para user ${userId}`);
+
     return res.json({
       success: true,
       traits: inferredTraits,
-      message: "Perfil calibrado con éxito basado en la lectura visual."
+      message: calibrationMethod === 'DEEPFACE' 
+        ? "Perfil calibrado con éxito basado en la lectura visual."
+        : "Calibración completada con parámetros base (lectura visual limitada)."
     });
 
   } catch (error) {
-    console.error("[Vision] Error en calibración:", error);
+    console.error("[VISION] Error fatal en calibración:", error);
     return res.status(500).json({ error: "Error al calibrar perfil" });
   }
 };

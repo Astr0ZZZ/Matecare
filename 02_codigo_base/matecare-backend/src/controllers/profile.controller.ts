@@ -49,13 +49,20 @@ export const saveProfile = async (req: Request, res: Response) => {
 
       const computed = mapQuizToPersonality(quizAnswers);
 
+      // Buscamos si ya existen preferencias (como las de visión) para no borrarlas
+      const existingPersonality = await prisma.personalityProfile.findUnique({ where: { userId } });
+      const mergedPreferences = {
+        ...(existingPersonality?.preferences as any || {}),
+        ...(computed.preferences || {})
+      };
+
       await prisma.personalityProfile.upsert({
         where: { userId },
         update: {
           mbtiType: computed.mbtiType,
           mbtiConfidence: computed.mbtiConfidence,
           attachmentStyle: computed.attachmentStyle,
-          preferences: computed.preferences,
+          preferences: mergedPreferences,
         },
         create: {
           userId,

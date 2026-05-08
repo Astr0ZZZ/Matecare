@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { redis } from '../lib/redis';
+import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { askAI } from './aiClient.service';
 import { InsightContext, MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
 import { AffectionStyle, ConflictStyle, CyclePhase } from '@prisma/client';
@@ -60,6 +60,7 @@ function buildInsightPrompt(req: InsightRequest): string {
     sorpresa_detalle:        'El usuario quiere sorprender a su pareja con un detalle.',
     comunicacion_importante: 'El usuario necesita tener una conversación importante.',
     dia_dificil:             'La pareja está teniendo un día difícil.',
+    plan_tactic_diario:      'El usuario necesita un consejo táctico diario basado en su fase y personalidad.',
   };
 
   return `Eres MateCare. Genera un insight específico y accionable para este caso.
@@ -91,19 +92,23 @@ INSTRUCCIONES:
 export async function getInsight(req: InsightRequest): Promise<string> {
   const cacheKey = buildCacheKey(req);
 
-  // 1. Buscar en Redis (más rápido)
-  try {
-    const redisResult = await redis.get(`insight:${cacheKey}`);
-    if (redisResult) {
-      console.log(`[Cache] HIT Redis: ${cacheKey}`);
-      return redisResult;
+  // 1. Buscar en Redis o Memoria (rápido)
+  if (isRedisConnected) {
+    try {
+      const redisResult = await redis.get(`insight:${cacheKey}`);
+      if (redisResult) {
+        console.log(`[Cache] HIT Redis: ${cacheKey}`);
+        return redisResult;
+      }
+    } catch (e) {
+      console.warn("[Redis] Error en getInsight:", e);
     }
-  } catch (e) {
-    const memoryResult = memoryCache[`insight:${cacheKey}`];
-    if (memoryResult) {
-      console.log(`[Cache] HIT Memory: ${cacheKey}`);
-      return memoryResult;
-    }
+  }
+
+  const memoryResult = memoryCache[`insight:${cacheKey}`];
+  if (memoryResult) {
+    console.log(`[Cache] HIT Memory: ${cacheKey}`);
+    return memoryResult;
   }
 
   // 2. Buscar en DB (persistente)
@@ -120,9 +125,11 @@ export async function getInsight(req: InsightRequest): Promise<string> {
       data: { hitCount: { increment: 1 } }
     });
 
-    try {
-      await redis.set(`insight:${cacheKey}`, dbResult.insight, { EX: CACHE_TTL_SECONDS });
-    } catch (e) { /* Redis opcional */ }
+    if (isRedisConnected) {
+      try {
+        await redis.set(`insight:${cacheKey}`, dbResult.insight, { EX: CACHE_TTL_SECONDS });
+      } catch (e) { /* Redis opcional */ }
+    }
 
     return dbResult.insight;
   }
@@ -148,10 +155,12 @@ export async function getInsight(req: InsightRequest): Promise<string> {
   });
 
   // Guardar en Redis y Memoria
-  try {
-    memoryCache[`insight:${cacheKey}`] = insight;
-    await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
-  } catch (e) { /* Opcional */ }
+  memoryCache[`insight:${cacheKey}`] = insight;
+  if (isRedisConnected) {
+    try {
+      await redis.set(`insight:${cacheKey}`, insight, { EX: CACHE_TTL_SECONDS });
+    } catch (e) { /* Opcional */ }
+  }
 
   return insight;
 }
