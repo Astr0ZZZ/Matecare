@@ -26,10 +26,13 @@ export const saveProfile = async (req: Request, res: Response) => {
       });
     }
 
+    // Normalizar fecha para evitar el error de "un día menos" por zona horaria
+    const normalizedDate = lastPeriodDate ? new Date(`${lastPeriodDate.split('T')[0]}T12:00:00`) : new Date();
+
     const profile = await prisma.partnerProfile.upsert({
       where: { userId },
-      update: { cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
-      create: { userId, cycleLength, periodDuration, lastPeriodDate: new Date(lastPeriodDate), personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
+      update: { cycleLength, periodDuration, lastPeriodDate: normalizedDate, personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
+      create: { userId, cycleLength, periodDuration, lastPeriodDate: normalizedDate, personalityType, socialLevel, privacyLevel, conflictStyle, affectionStyle },
     });
 
     if (thinkingStyle && decisionStyle && planningStyle) {

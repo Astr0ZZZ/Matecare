@@ -17,6 +17,7 @@ import base64
 import io
 import os
 from PIL import Image
+from typing import Any, Optional
 
 app = Flask(__name__)
 
@@ -88,8 +89,16 @@ def analyze():
             silent=True,
         )
         
-        # DeepFace devuelve lista si detecta varias caras; tomamos la primera
+        # Validación robusta de la respuesta
+        if not result:
+            raise ValueError("No se detectaron resultados")
+
+        # Tomamos la primera cara detectada
         face = result[0] if isinstance(result, list) else result
+        
+        # Doble verificación para formatos anidados raros
+        if isinstance(face, list):
+            face = face[0]
 
         dominant_emotion_raw = face.get("dominant_emotion", "neutral")
         dominant_emotion = map_emotion(dominant_emotion_raw)

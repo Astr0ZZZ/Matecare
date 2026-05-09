@@ -1,15 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-async function checkProfiles() {
-  const users = await prisma.user.findMany({
-    include: { partnerProfile: true }
+async function checkProfile() {
+  const userId = '66f3c068-0a49-4353-b67b-13d708f7a6e7';
+  const profile = await prisma.personalityProfile.findUnique({
+    where: { userId }
   });
-  console.log('--- Database Audit ---');
-  users.forEach(u => {
-    console.log(`User: ${u.email} (ID: ${u.id})`);
-    console.log(`  Profile: ${u.partnerProfile ? 'EXISTS' : 'MISSING'}`);
-  });
+  console.log('--- PERSONALITY PROFILE DATA ---');
+  console.log(JSON.stringify(profile, null, 2));
+  process.exit(0);
 }
 
-checkProfiles();
+checkProfile();

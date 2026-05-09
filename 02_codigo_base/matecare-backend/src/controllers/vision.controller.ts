@@ -48,43 +48,88 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     // o usamos un valor neutro si falla.
     const vision = await analyzePartnerPhoto(image).catch(() => neutralVisionContext());
 
-    // 4. PERSISTENCIA TÁCTICA: Guardamos el contexto detectado para el Dashboard y el Historial
-    await Promise.all([
-      // Actualizar perfil de personalidad con la última lectura
-      prisma.personalityProfile.update({
+    // 4. PERSISTENCIA TÁCTICA: Aseguramos que los datos se guarden y queden grabados en el perfil
+    try {
+      const existingPersonality = await prisma.personalityProfile.findUnique({ where: { userId } });
+      const currentPreferences = (existingPersonality?.preferences as any) || {};
+
+      await prisma.personalityProfile.upsert({
         where: { userId },
-        data: {
+        update: {
           preferences: {
-            ...(await prisma.personalityProfile.findUnique({ where: { userId } }))?.preferences as any || {},
-            ...vision,
-            lastDeepAnalysis: new Date().toISOString(),
+            ...currentPreferences,
+            debug_marker: "MATECARE_V3_ACTIVE",
+            // Campos que el Frontend espera actualmente:
+            dominantEmotion: vision.emotional_tone,
+            estimatedAge: (vision as any).age || 25, 
+            style: vision.environment_context,
+            lastCalibration: new Date().toISOString(),
+            // Datos detallados v3.0:
+            vision_insights: {
+              last_analysis: new Date().toISOString(),
+              fatigue: vision.physical_fatigue,
+              stress_tension: vision.jaw_tension,
+              environment: vision.environment_context,
+              dominant_mood: vision.emotional_tone,
+              signals: vision.facial_signals,
+              authenticity: {
+                is_authentic: !vision.visual_discrepancy,
+                suppression: vision.suppression_detected
+              }
+            }
+          }
+        },
+        create: {
+          userId,
+          mbtiType: "UNKNOWN", // Valores por defecto si es creación nueva
+          attachmentStyle: "SECURE",
+          preferences: {
+            debug_marker: "MATECARE_V3_ACTIVE",
+            dominantEmotion: vision.emotional_tone,
+            estimatedAge: 25,
+            style: vision.environment_context,
+            lastCalibration: new Date().toISOString(),
+            vision_insights: {
+              last_analysis: new Date().toISOString(),
+              fatigue: vision.physical_fatigue,
+              stress_tension: vision.jaw_tension,
+              environment: vision.environment_context,
+              dominant_mood: vision.emotional_tone,
+              signals: vision.facial_signals,
+              authenticity: {
+                is_authentic: !vision.visual_discrepancy,
+                suppression: vision.suppression_detected
+              }
+            }
           }
         }
-      }).catch(() => {}),
+      });
+      console.log(`[Vision] Datos persistidos con éxito (MATECARE_V3_ACTIVE) para el usuario ${userId}`);
+    } catch (e) {
+      console.error("[Vision] Error crítico persistiendo en perfil:", e);
+    }
 
-      // Guardar en el historial emocional
-      prisma.emotionalRecord.create({
-        data: {
-          userId,
-          dominantEmotion: vision.emotional_tone, // Mapeamos el tono emocional de la visión
-          confidence: vision.tactical_confidence,
-          isAuthentic: !vision.visual_discrepancy,
-          isSuppressed: vision.suppression_detected,
-          hasDiscrepancy: vision.visual_discrepancy,
-          authenticityLabel: vision.emotional_tone,
-          rawEmotions: vision as any,
-          phase: (await calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration)).phase,
-          environment: vision.environment_context,
-          analysisReliable: vision.tactical_confidence > 0.4
-        }
-      }).catch((e) => console.error("Error guardando record emocional:", e))
-    ]);
+    // 5. Guardar en el historial emocional (independiente del perfil)
+    await prisma.emotionalRecord.create({
+      data: {
+        userId,
+        dominantEmotion: vision.emotional_tone,
+        confidence: vision.tactical_confidence,
+        isAuthentic: !vision.visual_discrepancy,
+        isSuppressed: vision.suppression_detected,
+        hasDiscrepancy: vision.visual_discrepancy,
+        authenticityLabel: vision.emotional_tone,
+        rawEmotions: { ...vision, v3_active: true } as any,
+        phase: (await calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration)).phase,
+        environment: vision.environment_context,
+        analysisReliable: vision.tactical_confidence > 0.4
+      }
+    }).catch((e) => console.error("[Vision] Error guardando record emocional:", e));
 
     return res.json({
       response: aiResponse,
-      visionUsed: true,
-      emotionDetected: vision.emotional_tone,
-      fromCache: false,
+      vision: { ...vision, v3_active: true, debug_note: "SISTEMA V3 ACTIVO - DATOS SINCRONIZADOS" },
+      state: await calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration)
     });
 
   } catch (error) {
