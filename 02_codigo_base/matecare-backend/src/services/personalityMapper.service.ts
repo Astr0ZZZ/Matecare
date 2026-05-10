@@ -1,4 +1,6 @@
-import { MBTIType, ComputedPersonalityProfile, QuizAnswers } from '../../../shared/types/personality.types';
+import { MBTIType, ComputedPersonalityProfile, QuizAnswers } from '../types/personalityTypes';
+
+
 
 /**
  * Calcula el tipo MBTI y el perfil completo a partir de las respuestas del quiz.
@@ -105,6 +107,11 @@ export const PREFERENCE_DESCRIPTIONS = {
     distraction_laughs:'Cuando está estresada necesita distracción y que la hagas reír.',
   }
 };
+
+import { VISION_TRANSLATIONS } from './ai.service';
+export { VISION_TRANSLATIONS };
+
+
 
 /**
  * Fases del ciclo (tono actualizado v3.0)

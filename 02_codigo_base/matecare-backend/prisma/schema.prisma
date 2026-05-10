@@ -58,9 +58,17 @@ model PartnerProfile {
   // MBTI Link
   personalityProfileId String?
 
+  // Memoria Visual (Nuevo en v3.0)
+  visionAnalysis   Json?     @default("{}")
+  visualStyle      String?   
+  lastAdvice       String?   @db.Text
+  adviceUpdatedAt  DateTime?
+
   cycleLogs        CycleLog[]
   updatedAt        DateTime  @updatedAt
 }
+
+
 
 // ─────────────────────────────────────────────
 // MBTI y perfil de personalidad enriquecido

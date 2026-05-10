@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { mapQuizToPersonality } from '../services/personalityMapper.service';
-import { QuizAnswers } from '../../../shared/types/personality.types';
+import { QuizAnswers } from '../types/personalityTypes';
+
 
 export const saveProfile = async (req: Request, res: Response) => {
   console.log('--- Incoming Save Profile Request ---');
@@ -81,20 +82,58 @@ export const saveProfile = async (req: Request, res: Response) => {
   }
 };
 
+import { VISION_TRANSLATIONS } from '../services/ai.service';
+
 export const getProfile = async (req: Request, res: Response) => {
   const userId = req.params.userId || (req as any).user?.id;
+  
+  if (!userId) return res.status(401).json({ error: 'Identidad no válida' });
+
+  const humanize = (val: string) => VISION_TRANSLATIONS[val] || val;
+
   try {
-    const [profile, personalityProfile, user] = await Promise.all([
-      prisma.partnerProfile.findUnique({ where: { userId } }),
-      prisma.personalityProfile.findUnique({ where: { userId } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { points: true } })
-    ]);
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
-    res.status(200).json({ ...profile, mbti: personalityProfile, points: user?.points || 0 });
+    const profile = await prisma.partnerProfile.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: { points: true, pushToken: true }
+        }
+      }
+    });
+
+    const personality = await prisma.personalityProfile.findUnique({ where: { userId } });
+
+    if (!profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+
+    // Humanizar preferencias para el móvil
+    let humanizedPersonality = null;
+    if (personality) {
+      const prefs = (personality.preferences as any) || {};
+      humanizedPersonality = {
+        ...personality,
+        preferences: {
+          ...prefs,
+          preferredPlans: humanize(prefs.preferredPlans),
+          musicMood: humanize(prefs.musicMood),
+          stressedNeeds: humanize(prefs.stressedNeeds)
+        }
+      };
+    }
+
+    res.status(200).json({ 
+      ...profile,
+      visualStyle: humanize((profile as any).visualStyle || ""),
+      lastEmotion: humanize((profile as any).visionAnalysis?.dominant_emotion || ""),
+      mbti: humanizedPersonality, 
+      points: profile.user?.points || 0 
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    console.error("[Profile] Error:", error);
+    res.status(500).json({ error: 'Error al obtener el perfil' });
   }
 };
+
+
 
 export const getRanking = async (req: Request, res: Response) => {
   try {
@@ -129,10 +168,11 @@ export const updatePushToken = async (req: Request, res: Response) => {
   }
 
   try {
-    await (prisma.user as any).update({
+    await prisma.user.update({
       where: { id: userId },
       data: { pushToken: token }
     });
+
     console.log(`[PUSH] Token registrado para usuario ${userId}`);
     res.json({ success: true });
   } catch (error) {

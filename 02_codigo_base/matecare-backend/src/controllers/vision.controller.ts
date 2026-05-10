@@ -6,8 +6,9 @@ import {
   neutralVisionContext,
   type VisionContext,
 } from "../services/visionAnalysis.service";
-import { processChat, Message } from "../services/ai.service";
-import { MBTIType, AttachmentStyle } from "../../../shared/types/personality.types";
+import { processChat, Message, VISION_TRANSLATIONS, humanize } from "../services/ai.service";
+
+
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -39,75 +40,28 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     const finalUserMessage = userMessage?.trim() || "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
 
     // 2. Procesar con el sistema de dos agentes
-    // processChat se encarga de llamar al vision service internamente con un timeout de 900ms
-    const aiResponse = await processChat(userId, finalUserMessage, image, []);
+    // processChat ahora nos devuelve tanto la respuesta como la visión técnica calculada
+    const { response: aiResponse, vision: computedVision } = await processChat(userId, finalUserMessage, image, []);
 
-    // 3. Obtener visión por separado para persistencia si processChat no la retornó 
-    // (o podríamos hacer que processChat retorne el reporte completo)
-    // Para simplificar y asegurar que el dashboard se actualice, hacemos una pasada rápida de visión aquí 
-    // o usamos un valor neutro si falla.
-    const vision = await analyzePartnerPhoto(image).catch(() => neutralVisionContext());
+    // 3. Fallback de visión si algo salió mal en la IA (aunque processChat debería manejarlo)
+    const vision = computedVision || neutralVisionContext();
 
-    // 4. PERSISTENCIA TÁCTICA: Aseguramos que los datos se guarden y queden grabados en el perfil
+
+    // 4. PERSISTENCIA TÁCTICA: Guardamos en los nuevos campos de PartnerProfile
     try {
-      const existingPersonality = await prisma.personalityProfile.findUnique({ where: { userId } });
-      const currentPreferences = (existingPersonality?.preferences as any) || {};
-
-      await prisma.personalityProfile.upsert({
+      await prisma.partnerProfile.update({
         where: { userId },
-        update: {
-          preferences: {
-            ...currentPreferences,
-            debug_marker: "MATECARE_V3_ACTIVE",
-            // Campos que el Frontend espera actualmente:
-            dominantEmotion: vision.emotional_tone,
-            estimatedAge: (vision as any).age || 25, 
-            style: vision.environment_context,
-            lastCalibration: new Date().toISOString(),
-            // Datos detallados v3.0:
-            vision_insights: {
-              last_analysis: new Date().toISOString(),
-              fatigue: vision.physical_fatigue,
-              stress_tension: vision.jaw_tension,
-              environment: vision.environment_context,
-              dominant_mood: vision.emotional_tone,
-              signals: vision.facial_signals,
-              authenticity: {
-                is_authentic: !vision.visual_discrepancy,
-                suppression: vision.suppression_detected
-              }
-            }
-          }
-        },
-        create: {
-          userId,
-          mbtiType: "UNKNOWN", // Valores por defecto si es creación nueva
-          attachmentStyle: "SECURE",
-          preferences: {
-            debug_marker: "MATECARE_V3_ACTIVE",
-            dominantEmotion: vision.emotional_tone,
-            estimatedAge: 25,
-            style: vision.environment_context,
-            lastCalibration: new Date().toISOString(),
-            vision_insights: {
-              last_analysis: new Date().toISOString(),
-              fatigue: vision.physical_fatigue,
-              stress_tension: vision.jaw_tension,
-              environment: vision.environment_context,
-              dominant_mood: vision.emotional_tone,
-              signals: vision.facial_signals,
-              authenticity: {
-                is_authentic: !vision.visual_discrepancy,
-                suppression: vision.suppression_detected
-              }
-            }
-          }
-        }
+        data: {
+          visualStyle: humanize(vision.environment_context),
+          visionAnalysis: vision,
+        } as any
       });
-      console.log(`[Vision] Datos persistidos con éxito (MATECARE_V3_ACTIVE) para el usuario ${userId}`);
+
+      console.log(`[Vision] Memoria visual actualizada en PartnerProfile para ${userId}`);
     } catch (e) {
-      console.error("[Vision] Error crítico persistiendo en perfil:", e);
+      console.error("[Vision] Error persistiendo en PartnerProfile:", e);
     }
+
 
     // 5. Guardar en el historial emocional (independiente del perfil)
     await prisma.emotionalRecord.create({
@@ -169,19 +123,15 @@ export const handleProfileCalibration = async (req: AuthRequest, res: Response) 
       lastCalibration: new Date().toISOString(),
     };
 
-    await prisma.personalityProfile.upsert({
+    await prisma.partnerProfile.update({
       where: { userId },
-      update: {
-        preferences: {
-          ...( (await prisma.personalityProfile.findUnique({ where: { userId } }))?.preferences as any || {} ),
-          ...inferredTraits
-        }
-      },
-      create: {
-        userId,
-        preferences: inferredTraits as any
-      }
+      data: {
+        visualStyle: humanize(vision.environment_context),
+        visionAnalysis: vision
+      } as any
     });
+
+
 
     return res.json({
       success: true,

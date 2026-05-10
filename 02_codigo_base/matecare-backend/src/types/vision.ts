@@ -1,4 +1,5 @@
 export interface VisionContext {
+  // Datos crudos de Python (Legacy/Technical)
   emotional_tone: string;
   physical_fatigue: "high" | "medium" | "low" | "none";
   jaw_tension: number | null;
@@ -16,4 +17,12 @@ export interface VisionContext {
   suppression_detected: boolean;
   estimated_style?: string;
   social_energy?: string;
+
+  // Campos Normalizados (Prisma / IA v5.0)
+  dominantEmotion?: string;
+  visualStyle?: string;
+  environment?: string;
+  isSuppressed?: boolean;
+  hasDiscrepancy?: boolean;
+  confidence?: number;
 }

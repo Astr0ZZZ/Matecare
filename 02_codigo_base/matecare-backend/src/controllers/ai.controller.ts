@@ -2,10 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { getInsight, detectInsightContext } from '../services/insightCache.service';
-import type { MBTIType, AttachmentStyle } from '../../../shared/types/personality.types';
-import type { CyclePhase, AffectionStyle, ConflictStyle } from '@prisma/client';
-import { processChat } from '../services/ai.service';
+import { processChat, getOracleAdvice } from '../services/ai.service';
 
 // Cache en memoria para cuando Redis está offline
 const memoryCache: Record<string, string> = {};
@@ -41,33 +38,11 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       return res.status(422).json({ error: 'Partner profile is missing cycle data (lastPeriodDate)' });
     }
 
-    const personalityProfile = await getPersonalityProfile(userId);
-    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
-
-    // 1. Lógica de Cache con Insight Engine (mantenemos para velocidad)
-    if (personalityProfile?.mbtiType && mensaje && !image) {
-      const context = detectInsightContext(mensaje);
-      if (context !== 'plan_romantico') {
-        const cachedInsight = await getInsight({
-          mbtiType: personalityProfile.mbtiType as MBTIType,
-          phase: cycle.phase as CyclePhase,
-          context,
-          affectionStyle: profile.affectionStyle as AffectionStyle,
-          conflictStyle: profile.conflictStyle as ConflictStyle,
-          attachmentStyle: (personalityProfile.attachmentStyle as AttachmentStyle) ?? 'SECURE',
-          preferences: personalityProfile.preferences as { music?: string; plans?: string; stressedNeeds?: string } | undefined,
-        });
-
-        if (cachedInsight) {
-          return res.json({ response: cachedInsight, fromCache: true });
-        }
-      }
-    }
-
-    // 2. Lógica de Límites (3 preguntas máximo)
+    // 1. Lógica de Límites (3 preguntas máximo)
     const userMessagesCount = Array.isArray(history) 
       ? history.filter((h: any) => h.role === 'user').length 
       : 0;
+
 
     if (userMessagesCount >= 3) {
       return res.json({ 
@@ -89,9 +64,10 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       : [];
 
     // 3. Orquestador de Dos Agentes (v3.0)
-    const aiResponse = await processChat(userId, mensaje, image, trimmedHistory);
+    const { response: aiResponse } = await processChat(userId, mensaje, image, trimmedHistory);
     
     return res.json({ response: aiResponse, fromCache: false });
+
 
   } catch (error) {
     console.error('Chat error:', error);
@@ -119,30 +95,16 @@ export const getDailyRecommendation = async (req: AuthRequest, res: Response) =>
 
     const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
 
-    // Cache Key basada en fase actual
-    const dailyCacheKey = `daily:${userId}:${cycle.phase}`;
+    // Obtener recomendación usando el Oráculo (Él ya maneja su propio caché interno de 20h)
+    const aiResponse = await getOracleAdvice(userId);
 
-    // 1. Intentar Caché
-    if (isRedisConnected) {
-      try {
-        const cached = await redis.get(dailyCacheKey);
-        if (cached) return res.json({ recommendation: cached, cycle, fromCache: true });
-      } catch (redisError) {}
-    }
+    return res.json({ 
+      recommendation: aiResponse, 
+      cycle, 
+      fromCache: true // Siempre true si viene del service optimizado
+    });
 
-    const memoryCached = memoryCache[dailyCacheKey];
-    if (memoryCached) return res.json({ recommendation: memoryCached, cycle, fromCache: true });
 
-    // 2. Generar Recomendación usando el nuevo sistema (mensaje vacío para recomendación base)
-    const aiResponse = await processChat(userId, "Dame mi recomendación táctica del día basada en su fase actual.", undefined, []);
-
-    // Guardar en Cache
-    memoryCache[dailyCacheKey] = aiResponse;
-    if (isRedisConnected) {
-      await redis.set(dailyCacheKey, aiResponse, { EX: 82800 });
-    }
-
-    return res.json({ recommendation: aiResponse, cycle, fromCache: false });
 
   } catch (error) {
     console.error('Recommendation error:', error);

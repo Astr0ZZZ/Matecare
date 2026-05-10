@@ -1,53 +1,39 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { generarMisionesTactica } from '../services/aiClient.service';
+import { generateMissions } from '../services/ai.service';
 import { POINTS_ECONOMY } from '../services/points.service';
 
 export const getSuggestedMissions = async (req: Request, res: Response) => {
   const userId = (req as any).user?.id || req.params.userId;
 
+  if (!userId) return res.status(401).json({ error: 'User ID is required' });
+
   try {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
-
-    // Definimos "hoy" de forma más robusta (comienzo del día en UTC para consistencia con la DB)
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     
-    console.log(`[Missions] Fetching for user ${userId}, phase ${cycle.phase}, since ${today.toISOString()}`);
-
+    // Buscar misiones de hoy
     const currentMissions = await prisma.mission.findMany({
-      where: { 
-        userId, 
-        createdAt: { gte: today } 
-      }
+      where: { userId, createdAt: { gte: today } }
     });
 
     if (currentMissions.length > 0) {
-      console.log(`[Missions] Found ${currentMissions.length} missions for today.`);
       return res.json(currentMissions);
     }
 
-    const missions = await generarMisionesTactica({ phase: cycle.phase });
+    // Generar misiones con el nuevo sistema (generateMissions ya las guarda en DB)
+    await generateMissions(userId);
+    
+    // Devolver las misiones recién creadas
+    const newMissions = await prisma.mission.findMany({
+      where: { userId, createdAt: { gte: today } }
+    });
 
-    const savedMissions = await Promise.all(missions.slice(0, 3).map(async (m: any) => {
-      return prisma.mission.create({
-        data: {
-          userId,
-          title: m.title,
-          description: m.description,
-          category: m.category || 'ROMANTIC',
-          isCompleted: false,
-          progress: 0,
-          phaseContext: cycle.phase as any
-        }
-      });
-    }));
-
-    res.json(savedMissions);
+    res.json(newMissions);
   } catch (error) {
     console.error('Error getting missions:', error);
     res.status(500).json({ error: 'Failed to get missions' });
@@ -56,15 +42,11 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
 
 export const resetMissions = async (req: Request, res: Response) => {
   const userId = (req as any).user?.id || req.body.userId;
-  const COOLDOWN_HOURS = 6;
 
   try {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-    // Cooldown eliminado por solicitud del usuario
-
-    // Borrar misiones de hoy y generar nuevas
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     
@@ -72,28 +54,19 @@ export const resetMissions = async (req: Request, res: Response) => {
       where: { userId, createdAt: { gte: today } }
     });
 
-    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
-    const missions = await generarMisionesTactica({ phase: cycle.phase });
+    await generateMissions(userId);
+    
+    const newMissions = await prisma.mission.findMany({
+      where: { userId, createdAt: { gte: today } }
+    });
 
-    const savedMissions = await Promise.all(missions.slice(0, 3).map(async (m: any) => {
-      return prisma.mission.create({
-        data: {
-          userId,
-          title: m.title,
-          description: m.description,
-          category: m.category || 'ROMANTIC',
-          phaseContext: cycle.phase as any
-        }
-      });
-    }));
-
-    // Actualizar timestamp de reset
     await prisma.partnerProfile.update({
       where: { userId },
       data: { lastMissionReset: new Date() }
     });
 
-    res.json(savedMissions);
+    res.json(newMissions);
+
   } catch (error) {
     res.status(500).json({ error: 'Reset failed' });
   }
@@ -120,16 +93,10 @@ export const updateMissionProgress = async (req: Request, res: Response) => {
       },
     });
 
-    // Lógica de Puntos
     if (!wasCompleted && isNowCompleted) {
       await prisma.user.update({
         where: { id: userId },
         data: { points: { increment: POINTS_ECONOMY.MISSION_COMPLETED } }
-      });
-    } else if (wasCompleted && !isNowCompleted) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { points: { decrement: POINTS_ECONOMY.MISSION_COMPLETED } }
       });
     }
 
@@ -150,7 +117,6 @@ export const uploadEvidence = async (req: Request, res: Response) => {
       data: { imageUrl }
     });
 
-    // Bonus por foto
     await prisma.user.update({
       where: { id: userId },
       data: { points: { increment: POINTS_ECONOMY.EVIDENCE_UPLOADED } }
@@ -174,5 +140,6 @@ export const getMissionHistory = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch history' });
   }
 };
+
 
 

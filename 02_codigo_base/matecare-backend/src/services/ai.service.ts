@@ -5,164 +5,309 @@ import { INTERPRETER_SYSTEM_PROMPT } from '../prompts/interpreter.prompt';
 import { COPILOT_SYSTEM_PROMPT } from '../prompts/copilot.prompt';
 import { PHASE_TACTICAL_CONTEXT } from './personalityMapper.service';
 import OpenAI from 'openai';
-import { VisionContext } from '../types/vision';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const MODEL = "gpt-5-nano";
+// Usaremos fetch directamente para la nueva Responses API por ser un estándar emergente
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 
-export interface SubtextReport {
-  real_state: string;
-  hidden_need: string;
-  risk_flag: "ninguno" | "conflicto_latente" | "agotamiento" | "necesita_espacio" | "crisis";
-  tactical_note: string;
-  synergy_index: number;
-  unspoken_friction: "bajo" | "medio" | "alto";
-}
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-async function runInterpreter(
-  cycleData: any,
-  profile: any,
-  vision: VisionContext | null,
-  emotionalHistory: any[] = []
-): Promise<SubtextReport> {
+export const VISION_TRANSLATIONS: Record<string, string> = {
+  // Estilos
+  'rest_comfort': 'Relajada / Cómoda',
+  'social_event': 'Evento Social / Elegante',
+  'work_professional': 'Profesional / Ejecutiva',
+  'sport_active': 'Deportiva / Activa',
+  'streetwear': 'Urbana / Streetwear',
+  'street': 'Urbana / Street Style',
+  'coquette': 'Estilo Coquette / Femenina',
+  'reggaeton': 'Urbana / Estilo Reggaeton',
+  'urban': 'Urbana / Streetwear',
+  'elegant': 'Elegante / Formal',
+  'casual': 'Casual / Relajada',
   
-  const historySummary = emotionalHistory.length > 0 
-    ? emotionalHistory.map(r => `- ${r.createdAt.toISOString().split('T')[0]}: ${r.dominantEmotion} (Autenticidad: ${r.authenticityLabel})`).join('\n')
-    : 'Sin historial reciente.';
-
-  const userContent = `
-FASE: ${cycleData.phase} — Día ${cycleData.dayOfCycle} de ${cycleData.cycleLength || 28}
-MBTI: ${profile.mbtiType} | APEGO: ${profile.attachmentStyle} | AMOR: ${profile.preferences?.loveLanguage || 'No especificado'}
-
-HISTORIAL EMOCIONAL RECIENTE:
-${historySummary}
-
-${vision ? `
-VISIÓN ACTUAL:
-- Tono emocional: ${vision.emotional_tone}
-- Energía social: ${vision.social_energy}
-- Fatiga: ${vision.fatigue_signal}
-- Entorno: ${vision.environment_context}
-- Supresión detectada: ${vision.suppression_detected}
-- Discrepancia visual: ${vision.visual_discrepancy}
-- Color mood: ${vision.color_mood}
-` : 'VISIÓN ACTUAL: no disponible'}
-`.trim();
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: INTERPRETER_SYSTEM_PROMPT },
-      { role: "user",   content: userContent }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 300,
-    temperature: 0.4
-  });
-
-  const content = response.choices[0].message.content;
-  if (!content) throw new Error("Interpreter returned empty response");
+  // Entornos
+  'home': 'En Casa',
+  'office': 'Oficina / Trabajo',
+  'restaurant': 'Restaurante / Cita',
+  'outdoors': 'Al Aire Libre',
+  'gym': 'Gimnasio',
+  'social': 'Evento Social',
+  'work': 'Trabajo',
+  'nature': 'Naturaleza',
   
-  return JSON.parse(content) as SubtextReport;
+  // Emociones/Mood
+  'stress': 'Tensa / Bajo Presión',
+  'joy': 'Alegre / Radiante',
+  'alegre': 'Alegre / Radiante',
+  'happy': 'Alegre / Feliz',
+  'sadness': 'Melancólica / Sensible',
+  'sad': 'Sensible / Triste',
+  'anger': 'Enojada / Molesta',
+  'enojada': 'Enojada / Molesta',
+  'molesta': 'Molesta / Irritada',
+  'angry': 'Enojada / Irritada',
+  'distante': 'Distante / Reservada',
+  'neutral': 'Tranquila / Neutral',
+  'calm': 'Serena / Calmada',
+
+  // Preferencias
+  'total_surprise': 'Sorpresa Total',
+  'classic_jazz': 'Jazz Clásico',
+  'romantic_dinner': 'Cena Romántica',
+  'adventure': 'Aventura'
+};
+
+export function humanize(val: string | null | undefined): string {
+  if (!val) return "Neutral";
+  const key = val.toLowerCase().trim();
+  return VISION_TRANSLATIONS[key] || val;
 }
 
-async function runCopilot(
-  subtextReport: SubtextReport,
-  userMessage: string,
-  cyclePhase: string,
-  chatHistory: Message[]
-): Promise<string> {
-
-  const tacticalContext = PHASE_TACTICAL_CONTEXT[cyclePhase as keyof typeof PHASE_TACTICAL_CONTEXT] || '';
-
-  const systemWithContext = `
-${COPILOT_SYSTEM_PROMPT}
-
-LECTURA INTERNA (del análisis de La Intérprete):
-- Estado real: ${subtextReport.real_state}
-- Necesidad oculta: ${subtextReport.hidden_need}
-- Flag de riesgo: ${subtextReport.risk_flag}
-- Nota táctica: ${subtextReport.tactical_note}
-- Sinergia (TSI): ${subtextReport.synergy_index}/100
-- Fricción latente: ${subtextReport.unspoken_friction}
-- Fase activa: ${cyclePhase}
-
-CONTEXTO TÁCTICO DE LA FASE:
-${tacticalContext}
-`.trim();
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: systemWithContext },
-      ...chatHistory.slice(-6),
-      { role: "user", content: userMessage }
-    ],
-    max_tokens: 150,
-    temperature: 0.7
-  });
-
-  return response.choices[0].message.content || "Error procesando respuesta táctica.";
+function cleanTacticalResponse(text: string): string {
+  return text
+    .replace(/\[.*?\]/g, "") // Elimina cualquier cosa entre corchetes
+    .replace(/\{.*?\}/g, "") // Elimina cualquier cosa entre llaves
+    .replace(/^[a-zA-ZÀ-ÿ\s\.\·]+:\s*/, "") // Elimina etiquetas iniciales tipo "Fase:", "ENTORNO:", etc.
+    .replace(/\s+/g, " ") // Normaliza espacios
+    .trim();
 }
 
+
+/**
+ * MOTOR DE IA UNIFICADO V5.0 (OPENAI RESPONSES API)
+ * Una sola llamada atómica para visión, contexto y respuesta.
+ */
+async function runUnifiedTacticalAI(context: any, userMessage: string, type: 'DASHBOARD' | 'CHAT', imageBase64?: string): Promise<any> {
+  const instructions = `
+  ${INTERPRETER_SYSTEM_PROMPT}
+  ${COPILOT_SYSTEM_PROMPT}
+  
+  ESTRATEGIA: Estás en modo ${type}.
+  Si es DASHBOARD: Genera reporte interno, consejo del día y 3 misiones.
+  Si es CHAT: Responde al mensaje del usuario usando el reporte interno.
+  
+  FORMATO DE SALIDA (JSON ESTRICTO):
+  {
+    "interpreter": { "real_state": "...", "sexual_mood": "...", "hidden_need": "...", "risk_flag": "...", "tactical_note": "...", "style_analysis": "...", "synergy_index": 0-100 },
+    "response": "mensaje del coach (max 30 palabras)",
+    "missions": [
+      {"title": "PHYSICAL", "description": "...", "category": "PHYSICAL"},
+      {"title": "ROMANTIC", "description": "...", "category": "ROMANTIC"},
+      {"title": "QUALITY", "description": "...", "category": "QUALITY"}
+    ]
+  }
+  `.trim();
+
+  const userContextText = `
+  BIOLOGÍA: Fase ${context.cycle.phase}, Día ${context.cycle.dayOfCycle}
+  PERFIL: MBTI ${context.personality?.mbtiType}, Apego ${context.personality?.attachmentStyle}
+  VISIÓN_LOCAL: ${JSON.stringify(context.vision.technical || {})}
+  MENSAJE/ORDEN: ${userMessage}
+  `.trim();
+
+  try {
+    const inputContent: any[] = [
+      { type: "input_text", text: userContextText }
+    ];
+
+    if (imageBase64) {
+      inputContent.unshift({
+        type: "input_image",
+        image_url: `data:image/jpeg;base64,${imageBase64}`,
+        detail: "auto"
+      });
+    }
+
+    const res = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        instructions: instructions,
+        input: [
+          {
+            role: "user",
+            content: inputContent
+          }
+        ],
+        max_output_tokens: 1000,
+        temperature: 0.7
+      })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(`OpenAI API Error: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await res.json() as any;
+    
+    // Parser para la Responses API
+    const rawText = data.output
+      .flatMap((o: any) => o.content)
+      .filter((c: any) => c.type === "output_text")
+      .map((c: any) => c.text)
+      .join("");
+
+    const parsed = JSON.parse(rawText);
+    
+    return {
+      ...parsed,
+      response: cleanTacticalResponse(parsed.response || "")
+    };
+
+  } catch (e) {
+    console.error("[Unified-AI] Error crítico:", e);
+    return {
+      interpreter: { real_state: "Sincronizando", synergy_index: 90 },
+      response: "Ajustando táctica. Mantén la posición.",
+      missions: []
+    };
+  }
+}
+
+/**
+ * CARGA UNIFICADA DE INFORMACIÓN
+ */
+async function getUnifiedContext(userId: string, imageBase64?: string) {
+  const [profileData, personality, emotionalHistory] = await Promise.all([
+    prisma.partnerProfile.findUnique({ where: { userId } }),
+    prisma.personalityProfile.findUnique({ where: { userId } }),
+    prisma.emotionalRecord.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 3 })
+  ]);
+
+  if (!profileData) throw new Error("Profile not found");
+
+  const cycleState = cycleEngine.calculateCycleState(
+    profileData.lastPeriodDate!,
+    profileData.cycleLength,
+    profileData.periodDuration
+  );
+
+  let technicalVision = (profileData as any).visionAnalysis;
+
+  if (imageBase64) {
+    // La visión estética ahora la hace el modelo unificado, 
+    // aquí solo llamamos al motor local de Python para datos técnicos.
+    const localVision = await visionService.analyze(imageBase64).catch(() => null);
+    if (localVision) technicalVision = localVision;
+  }
+
+  return {
+    userId,
+    cycle: { ...cycleState, cycleLength: profileData.cycleLength },
+    personality,
+    vision: { 
+      technical: technicalVision || {}, 
+      descriptive: "Integrado en llamada unificada"
+    },
+    history: emotionalHistory
+  };
+}
+
+/**
+ * VISIÓN GPT (Opcional si hay imagen)
+ */
+/**
+ * @deprecated VISIÓN GPT ahora está unificada en runUnifiedTacticalAI
+ */
+async function runVisionGPT(imageBase64: string): Promise<string> {
+  return "Deprecated";
+}
+
+/**
+ * EXPORT: ORÁCULO (Persistencia Real en DB)
+ */
+export async function getOracleAdvice(userId: string, onlyCache = false): Promise<string | null> {
+  const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+  if (!profile) return null;
+
+  const now = new Date();
+  const lastAdvice = (profile as any).lastAdvice;
+  const lastUpdate = (profile as any).adviceUpdatedAt;
+
+  if (lastAdvice && lastUpdate && (now.getTime() - new Date(lastUpdate).getTime()) < 20 * 60 * 60 * 1000) {
+    return lastAdvice;
+  }
+
+  if (onlyCache) return null;
+
+  const context = await getUnifiedContext(userId);
+  const result = await runUnifiedTacticalAI(context, "Genera reporte diario y misiones", "DASHBOARD");
+
+  // Guardar Consejo en Perfil
+  prisma.partnerProfile.update({
+    where: { userId },
+    data: { lastAdvice: result.response, adviceUpdatedAt: new Date() } as any
+  }).catch(() => {});
+
+  // Guardar Misiones en DB
+  if (result.missions && result.missions.length > 0) {
+    const cycle = context.cycle;
+    Promise.all(result.missions.map((m: any) => prisma.mission.create({
+      data: {
+        userId,
+        title: m.title,
+        description: m.description,
+        category: m.category,
+        phaseContext: (cycle.phase as string).toUpperCase() as any
+      }
+    }))).catch(() => {});
+  }
+
+  return result.response;
+}
+
+/**
+ * EXPORT: CHAT (IA Unificada)
+ */
 export async function processChat(
   userId: string,
   userMessage: string,
   imageBase64?: string,
   history: Message[] = []
-): Promise<string> {
-
-  // 1. Datos paralelos
-  const profileData = await prisma.partnerProfile.findUnique({ where: { userId } });
-  if (!profileData) throw new Error("Partner profile not found");
-
-  const [cycleState, personalityProfile, vision, emotionalHistory] = await Promise.all([
-    cycleEngine.calculateCycleState(profileData.lastPeriodDate!, profileData.cycleLength, profileData.periodDuration),
-    prisma.personalityProfile.findUnique({ where: { userId } }),
-    imageBase64 
-      ? Promise.race([
-          visionService.analyze(imageBase64),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)) // Un poco más de tiempo para el pipeline v3.0
-        ]).catch(() => null) 
-      : Promise.resolve(null),
-    prisma.emotionalRecord.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 3
-    })
-  ]);
-
-  const cycleData = { ...cycleState, cycleLength: profileData.cycleLength };
-
-  // 2. Crisis detection rápida (sin IA)
-  const crisisKeywords = ["terminar", "llorar", "pelea", "enojada", "separar", "ya no"];
-  const isCrisis = crisisKeywords.some(k => userMessage.toLowerCase().includes(k));
-
-  // 3. Agente 1: La Intérprete
-  const subtextReport = await runInterpreter(cycleData, personalityProfile, vision, emotionalHistory);
+): Promise<{ response: string, vision: any }> {
+  const context = await getUnifiedContext(userId, imageBase64);
+  const result = await runUnifiedTacticalAI(context, userMessage, "CHAT", imageBase64);
   
-  // Override si crisis detectada por keywords
-  if (isCrisis && subtextReport.risk_flag === "ninguno") {
-    subtextReport.risk_flag = "crisis";
-  }
-
-  // 4. Agente 2: El Copiloto
-  const finalResponse = await runCopilot(subtextReport, userMessage, cycleData.phase, history);
-
-  // Guardar mensaje en historial de AIInteraction (opcional, pero recomendado)
-  await prisma.aIInteraction.create({
-    data: {
-      userId,
-      userInput: userMessage,
-      aiResponse: finalResponse,
-      phaseContext: cycleData.phase,
-      promptTokens: 0 // Placeholder
-    }
+  prisma.aIInteraction.create({
+    data: { userId, userInput: userMessage, aiResponse: result.response, phaseContext: context.cycle.phase as any, promptTokens: 0 }
   }).catch(() => {});
 
-  return finalResponse;
+  return { response: result.response, vision: context.vision.technical };
 }
+
+/**
+ * EXPORT: GENERACIÓN DE MISIONES (Legacy Support)
+ */
+export async function generateMissions(userId: string): Promise<any[]> {
+  const context = await getUnifiedContext(userId);
+  const result = await runUnifiedTacticalAI(context, "Genera 3 misiones tácticas", "DASHBOARD");
+  
+  const missions = result.missions || [];
+  
+  if (missions.length > 0) {
+    const cycle = context.cycle;
+    await Promise.all(missions.map((m: any) => prisma.mission.create({
+      data: {
+        userId,
+        title: m.title,
+        description: m.description,
+        category: m.category,
+        phaseContext: (cycle.phase as string).toUpperCase() as any
+      }
+    }))).catch(() => {});
+  }
+
+  return missions;
+}
+

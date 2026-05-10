@@ -72,7 +72,21 @@ export async function analyze(imageBase64: string): Promise<VisionContext> {
 
     const data = await res.json();
     recordSuccess();
-    return data as VisionContext;
+
+    // NORMALIZACIÓN V3.0: Traducir del idioma Python al idioma Prisma/IA
+    const normalizedData: VisionContext = {
+      ...neutralVisionContext(),
+      ...data,
+      // Mapeo Crítico: Python -> Backend
+      dominantEmotion: data.emotional_tone || data.dominant_emotion || "Neutral",
+      visualStyle: data.estimated_style || data.visual_style || "Casual",
+      environment: data.environment_context || data.environment || "Home",
+      isSuppressed: data.suppression_detected || false,
+      hasDiscrepancy: data.visual_discrepancy || false,
+      confidence: data.tactical_confidence || 0.5
+    };
+
+    return normalizedData;
 
   } catch (error: any) {
     recordFailure();
@@ -82,19 +96,28 @@ export async function analyze(imageBase64: string): Promise<VisionContext> {
   }
 }
 
+
 export { analyze as analyzePartnerPhoto };
 
 export function neutralVisionContext(): VisionContext {
   return {
-    estimated_style: "Casual/Comfort",
-    social_energy: "Medium",
-    emotional_tone: "Calm",
-    visual_discrepancy: false,
+    emotional_tone: "Neutral",
+    physical_fatigue: "none",
+    jaw_tension: 0,
+    facial_signals: {
+      ear: 0.3,
+      jaw_tension: 0
+    },
+    pose_analysis: {
+      posture: "Relaxed",
+      head_tilt: "None"
+    },
+    environment_context: "Home",
     tactical_confidence: 0.5,
-    fatigue_signal: "low",
-    environment_context: "unknown",
-    color_mood: "neutral",
-    head_tilt_signal: "neutral",
-    suppression_detected: false
+    visual_discrepancy: false,
+    suppression_detected: false,
+    estimated_style: "Casual",
+    social_energy: "Medium"
   };
 }
+
