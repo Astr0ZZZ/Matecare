@@ -44,7 +44,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           setProfileLoaded(true);
         })
         .catch((err) => {
-          const isNotFound = err.message?.includes('404') || err.message?.includes('not found');
+          const isNotFound = 
+            err.message?.includes('404') || 
+            err.message?.toLowerCase().includes('not found') ||
+            err.message?.toLowerCase().includes('no encontrado');
           console.log('[AuthGuard] Error al cargar perfil:', err.message, '¿Es 404?', isNotFound);
           
           if (isNotFound) {

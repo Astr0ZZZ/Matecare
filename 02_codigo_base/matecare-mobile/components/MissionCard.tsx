@@ -24,6 +24,7 @@ interface MissionCardProps {
   description: string;
   progress: number;
   category: string;
+  intensity?: string;
   index: number;
   onPress: () => void;
 }
@@ -35,6 +36,7 @@ export default function MissionCard({
   description, 
   progress, 
   category, 
+  intensity = 'NORMAL',
   index = 0, 
   onPress 
 }: MissionCardProps) {
@@ -142,9 +144,12 @@ export default function MissionCard({
       style={[
         styles.cardContainer,
         { 
-          backgroundColor: theme.colors.card, 
-          borderColor: theme.colors.border,
-          shadowColor: isCyber ? theme.colors.accent : 'transparent'
+          backgroundColor: intensity === 'HOT' ? 'rgba(255, 30, 30, 0.25)' : theme.colors.card, 
+          borderColor: intensity === 'HOT' ? '#FF2222' : theme.colors.border,
+          borderWidth: intensity === 'HOT' ? 1.5 : 0.5,
+          shadowColor: intensity === 'HOT' ? '#FF0000' : (isCyber ? theme.colors.accent : 'transparent'),
+          shadowOpacity: intensity === 'HOT' ? 0.8 : 0.2,
+          shadowRadius: intensity === 'HOT' ? 10 : 5
         },
         isCyber && flickerStyle
       ]}
@@ -162,8 +167,8 @@ export default function MissionCard({
             <Text style={[styles.missionTitle, { color: theme.colors.text, fontFamily: theme.typography.boldFont }]}>
               {title}
             </Text>
-            <Text style={[styles.missionCategory, { color: theme.colors.accent, fontFamily: theme.typography.boldFont }]}>
-              {category.toUpperCase()}
+            <Text style={[styles.missionCategory, { color: intensity === 'HOT' ? '#FF4444' : theme.colors.accent, fontFamily: theme.typography.boldFont }]}>
+              {intensity === 'HOT' ? 'HOT TACTIC' : category.toUpperCase()}
             </Text>
           </View>
           {!isCompleted && (

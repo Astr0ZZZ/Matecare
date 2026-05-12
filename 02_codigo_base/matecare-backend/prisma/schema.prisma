@@ -23,7 +23,6 @@ model User {
   partnerProfile     PartnerProfile?
   personalityProfile PersonalityProfile?
   aiInteractions     AIInteraction[]
-  notifications      Notification[]
   missions           Mission[]
   emotionalRecords   EmotionalRecord[]
 }
@@ -62,9 +61,10 @@ model PartnerProfile {
   visionAnalysis   Json?     @default("{}")
   visualStyle      String?   
   lastAdvice       String?   @db.Text
+  lastInterpreterAnalysis Json?   // Análisis del Agente 1
+  lastVisionDescription   String? @db.Text // Descripción estética humana de la IA
   adviceUpdatedAt  DateTime?
 
-  cycleLogs        CycleLog[]
   updatedAt        DateTime  @updatedAt
 }
 
@@ -97,36 +97,6 @@ model PersonalityProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
-
-// Cache de insights generados por IA
-model PersonalityInsight {
-  id          String   @id @default(uuid())
-
-  // Clave única: "INFJ_LUTEAL_dia_dificil_VERBAL_AVOIDANT"
-  cacheKey    String   @unique
-  insight     String
-  hitCount    Int      @default(0)
-
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime
-}
-
-enum AttachmentStyle {
-  ANXIOUS    
-  SECURE     
-  AVOIDANT   
-}
-
-enum InsightContext {
-  plan_romantico
-  conflicto_tension
-  necesita_espacio
-  sorpresa_detalle
-  comunicacion_importante
-  dia_dificil
-  plan_tactic_diario
-}
-
 enum PersonalityType {
   INTROVERTED
   EXTROVERTED
@@ -158,14 +128,11 @@ enum AffectionStyle {
   QUALITY     
 }
 
-model CycleLog {
-  id             String    @id @default(uuid())
-  profileId      String
-  profile        PartnerProfile @relation(fields: [profileId], references: [id])
-  logDate        DateTime
-  phase          CyclePhase
-  dayOfCycle     Int
-  notes          String?
+enum AttachmentStyle {
+  SECURE
+  ANXIOUS
+  AVOIDANT
+  DISORGANIZED
 }
 
 enum CyclePhase {
@@ -186,23 +153,6 @@ model AIInteraction {
   createdAt     DateTime  @default(now())
 }
 
-model Notification {
-  id            String    @id @default(uuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id])
-  message       String
-  type          NotifType
-  scheduledAt   DateTime
-  sentAt        DateTime?
-  opened        Boolean   @default(false)
-}
-
-enum NotifType {
-  PHASE_CHANGE    
-  DAILY_TIP       
-  PERIOD_SOON     
-  CUSTOM          
-}
 
 model Mission {
   id            String    @id @default(uuid())
@@ -214,6 +164,7 @@ model Mission {
   isCompleted   Boolean   @default(false)
   phaseContext  CyclePhase
   category      String?   
+  intensity     String    @default("NORMAL")
   
   // Gamificación y Evidencia
   imageUrl      String?   

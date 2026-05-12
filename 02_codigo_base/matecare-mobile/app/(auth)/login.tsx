@@ -35,8 +35,9 @@ export default function Login() {
         setErrorMsg(error.message);
       } else if (data.user) {
         // Pre-calentamiento táctico: avisamos al servidor para que empiece a calcular el Dashboard
-        const apiBase = process.env.EXPO_PUBLIC_API_URL;
-        fetch(`${apiBase}/api/dashboard/summary/${data.user.id}`).catch(() => {});
+        const apiBase = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
+        const url = apiBase.endsWith('/api') ? `${apiBase}/dashboard/summary/${data.user.id}` : `${apiBase}/api/dashboard/summary/${data.user.id}`;
+        fetch(url).catch(() => {});
         // Dejamos que AuthGuard maneje la redirección
       }
     } catch (err) {
@@ -83,8 +84,9 @@ export default function Login() {
             // Pre-calentamiento táctico para Google
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-              const apiBase = process.env.EXPO_PUBLIC_API_URL;
-              fetch(`${apiBase}/api/dashboard/summary/${user.id}`).catch(() => {});
+              const apiBase = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
+              const url = apiBase.endsWith('/api') ? `${apiBase}/dashboard/summary/${user.id}` : `${apiBase}/api/dashboard/summary/${user.id}`;
+              fetch(url).catch(() => {});
             }
           } else {
             console.warn('[AUTH] No tokens found in redirect URL:', result.url);

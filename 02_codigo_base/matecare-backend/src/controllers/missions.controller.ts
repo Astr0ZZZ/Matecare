@@ -16,21 +16,22 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     
-    // Buscar misiones de hoy
+    // Buscar misiones no completadas
     const currentMissions = await prisma.mission.findMany({
-      where: { userId, createdAt: { gte: today } }
+      where: { userId, isCompleted: false }
     });
 
-    if (currentMissions.length > 0) {
-      return res.json(currentMissions);
+    if (currentMissions.length >= 3) {
+      return res.json(currentMissions.slice(0, 3));
     }
 
-    // Generar misiones con el nuevo sistema (generateMissions ya las guarda en DB)
+    // Generar misiones si faltan
     await generateMissions(userId);
     
-    // Devolver las misiones recién creadas
     const newMissions = await prisma.mission.findMany({
-      where: { userId, createdAt: { gte: today } }
+      where: { userId, isCompleted: false },
+      orderBy: { createdAt: 'desc' },
+      take: 3
     });
 
     res.json(newMissions);
@@ -47,17 +48,16 @@ export const resetMissions = async (req: Request, res: Response) => {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    
+    // Borrar misiones no completadas para regenerar
     await prisma.mission.deleteMany({
-      where: { userId, createdAt: { gte: today } }
+      where: { userId, isCompleted: false }
     });
 
     await generateMissions(userId);
     
     const newMissions = await prisma.mission.findMany({
-      where: { userId, createdAt: { gte: today } }
+      where: { userId, isCompleted: false },
+      take: 3
     });
 
     await prisma.partnerProfile.update({
@@ -104,27 +104,6 @@ export const updateMissionProgress = async (req: Request, res: Response) => {
     res.json({ mission, newPoints: updatedUser?.points ?? 0 });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update mission' });
-  }
-};
-
-export const uploadEvidence = async (req: Request, res: Response) => {
-  const { missionId, imageUrl } = req.body;
-  const userId = (req as any).user?.id || req.body.userId;
-
-  try {
-    const mission = await prisma.mission.update({
-      where: { id: missionId },
-      data: { imageUrl }
-    });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { points: { increment: POINTS_ECONOMY.EVIDENCE_UPLOADED } }
-    });
-
-    res.json({ success: true, mission });
-  } catch (error) {
-    res.status(500).json({ error: 'Evidence upload failed' });
   }
 };
 

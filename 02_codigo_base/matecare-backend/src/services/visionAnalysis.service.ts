@@ -70,20 +70,20 @@ export async function analyze(imageBase64: string): Promise<VisionContext> {
       throw new Error(`Vision service error ${res.status}`);
     }
 
-    const data = await res.json();
+    const rawData = await res.json() as any;
     recordSuccess();
 
     // NORMALIZACIÓN V3.0: Traducir del idioma Python al idioma Prisma/IA
     const normalizedData: VisionContext = {
       ...neutralVisionContext(),
-      ...data,
+      ...rawData,
       // Mapeo Crítico: Python -> Backend
-      dominantEmotion: data.emotional_tone || data.dominant_emotion || "Neutral",
-      visualStyle: data.estimated_style || data.visual_style || "Casual",
-      environment: data.environment_context || data.environment || "Home",
-      isSuppressed: data.suppression_detected || false,
-      hasDiscrepancy: data.visual_discrepancy || false,
-      confidence: data.tactical_confidence || 0.5
+      dominantEmotion: rawData.emotional_tone || rawData.dominant_emotion || "Neutral",
+      visualStyle: rawData.estimated_style || rawData.visual_style || "Casual",
+      environment: rawData.environment_context || rawData.environment || "Home",
+      isSuppressed: rawData.suppression_detected || false,
+      hasDiscrepancy: rawData.visual_discrepancy || false,
+      confidence: rawData.tactical_confidence || 0.5
     };
 
     return normalizedData;

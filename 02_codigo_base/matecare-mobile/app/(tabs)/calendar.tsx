@@ -37,7 +37,7 @@ export default function CalendarScreen() {
       if (!user) return;
 
       const [cycleData, missions] = await Promise.all([
-        apiFetch(`/cycle/current/${user.id}`),
+        apiFetch(`/profile/current/${user.id}`),
         apiFetch(`/missions/history/${user.id}`)
       ]);
 

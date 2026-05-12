@@ -40,24 +40,24 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     const finalUserMessage = userMessage?.trim() || "Acabo de subir una foto de mi pareja. Dame el consejo táctico exacto para este momento.";
 
     // 2. Procesar con el sistema de dos agentes
-    // processChat ahora nos devuelve tanto la respuesta como la visión técnica calculada
-    const { response: aiResponse, vision: computedVision } = await processChat(userId, finalUserMessage, image, []);
+    const { response: aiResponse, vision: computedVision, styleAnalysis, interpreter } = await processChat(userId, finalUserMessage, image, []);
 
-    // 3. Fallback de visión si algo salió mal en la IA (aunque processChat debería manejarlo)
+    // 3. Fallback de visión
     const vision = computedVision || neutralVisionContext();
 
-
-    // 4. PERSISTENCIA TÁCTICA: Guardamos en los nuevos campos de PartnerProfile
+    // 4. PERSISTENCIA TÁCTICA
     try {
       await prisma.partnerProfile.update({
         where: { userId },
         data: {
           visualStyle: humanize(vision.environment_context),
           visionAnalysis: vision,
+          lastVisionDescription: styleAnalysis,
+          lastInterpreterAnalysis: interpreter, // ¡IMPORTANTE! Sincronizamos los chips
+          lastAdvice: aiResponse
         } as any
       });
-
-      console.log(`[Vision] Memoria visual actualizada en PartnerProfile para ${userId}`);
+      console.log(`[Vision] Memoria visual y descripción IA actualizadas para ${userId}`);
     } catch (e) {
       console.error("[Vision] Error persistiendo en PartnerProfile:", e);
     }
@@ -82,67 +82,12 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
 
     return res.json({
       response: aiResponse,
+      interpreter, // Enviamos el análisis fresco al móvil
       vision: { ...vision, v3_active: true, debug_note: "SISTEMA V3 ACTIVO - DATOS SINCRONIZADOS" },
       state: await calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration)
     });
-
   } catch (error) {
     console.error("[VISION] Error crítico en vision-chat:", error);
     return res.status(500).json({ error: "Error interno al procesar la imagen" });
-  }
-};
-
-/**
- * POST /api/ai/calibrate-profile
- * Calibración manual del perfil basada en una foto
- */
-export const handleProfileCalibration = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-  const { imageBase64 } = req.body;
-
-  if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
-  if (!imageBase64) return res.status(400).json({ error: 'No se recibió la imagen (imageBase64)' });
-
-  console.log(`[VISION] Calibrando perfil para usuario: ${userId}`);
-
-  try {
-    let vision: VisionContext;
-    let calibrationMethod = 'VISION_ENGINE';
-
-    try {
-      vision = await analyzePartnerPhoto(imageBase64);
-    } catch (visionError) {
-      console.warn("[VISION] Vision Engine falló en calibración. Aplicando rasgos base.");
-      vision = neutralVisionContext();
-      calibrationMethod = 'FALLBACK_NEUTRAL';
-    }
-
-    const inferredTraits = {
-      ...vision,
-      calibrationMethod,
-      lastCalibration: new Date().toISOString(),
-    };
-
-    await prisma.partnerProfile.update({
-      where: { userId },
-      data: {
-        visualStyle: humanize(vision.environment_context),
-        visionAnalysis: vision
-      } as any
-    });
-
-
-
-    return res.json({
-      success: true,
-      traits: inferredTraits,
-      message: calibrationMethod === 'VISION_ENGINE' 
-        ? "Perfil calibrado con éxito basado en la lectura visual."
-        : "Calibración completada con parámetros base."
-    });
-
-  } catch (error) {
-    console.error("[VISION] Error fatal en calibración:", error);
-    return res.status(500).json({ error: "Error al calibrar perfil" });
   }
 };

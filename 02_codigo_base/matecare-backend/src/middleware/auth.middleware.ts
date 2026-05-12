@@ -13,7 +13,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const { data: { user }, error } = await supabase.auth.getUser(token)
 
   if (error || !user) {
-    console.error('Auth Error:', error?.message)
+    console.error(`[AUTH] Error de Validación (Token: ${token?.substring(0, 10)}...):`, error?.message || 'Usuario no encontrado');
     return res.status(401).json({ error: 'Unauthorized or invalid token' })
   }
 

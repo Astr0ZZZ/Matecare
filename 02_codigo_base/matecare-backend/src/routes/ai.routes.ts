@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { handleChat, getDailyRecommendation } from '../controllers/ai.controller';
-import { handleVisionChat, handleProfileCalibration } from '../controllers/vision.controller';
+import { handleVisionChat } from '../controllers/vision.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -9,8 +9,7 @@ const router = Router();
 router.post('/chat', requireAuth, handleChat);
 router.get('/recommendation/:userId', requireAuth, getDailyRecommendation);
 
-// Rutas de Visión Táctica (Consolidadas aquí para evitar errores de módulo)
+// Rutas de Visión Táctica (Consolidadas en vision-chat v5.1)
 router.post('/vision-chat', requireAuth, handleVisionChat);
-router.post('/calibrate-profile', requireAuth, handleProfileCalibration);
 
 export default router;

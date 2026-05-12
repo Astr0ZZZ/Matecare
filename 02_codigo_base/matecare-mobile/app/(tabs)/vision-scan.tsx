@@ -54,13 +54,7 @@ export function useVisionChat() {
     try {
       const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' });
       
-      // 1. Calibración atómica
-      const data = await apiFetch('/ai/calibrate-profile', {
-        method: 'POST',
-        body: JSON.stringify({ imageBase64: base64 }),
-      });
-
-      // 2. Análisis táctico
+      // Única llamada atómica (Calibra + Analiza + Persiste)
       const chatData = await apiFetch('/ai/vision-chat', {
         method: 'POST',
         body: JSON.stringify({ image: `data:image/jpeg;base64,${base64}` }),
@@ -68,12 +62,12 @@ export function useVisionChat() {
 
       setResult({
         response: chatData.response,
-        emotionDetected: chatData.emotionDetected || data.traits?.dominantEmotion || "Neutral",
-        authenticityLabel: chatData.authenticityLabel,
-        isSuppressed: chatData.isSuppressed,
-        hasDiscrepancy: chatData.hasDiscrepancy,
-        bodyLanguage: chatData.bodyLanguage,
-        sceneCategory: chatData.sceneCategory,
+        emotionDetected: chatData.vision?.emotional_tone || "Neutral",
+        authenticityLabel: chatData.vision?.emotional_tone,
+        isSuppressed: chatData.vision?.suppression_detected,
+        hasDiscrepancy: chatData.vision?.visual_discrepancy,
+        bodyLanguage: chatData.vision?.pose_analysis?.posture,
+        sceneCategory: chatData.vision?.environment_context,
       });
 
     } catch (e: any) {

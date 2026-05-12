@@ -18,7 +18,7 @@ OUTPUT (JSON):
   "hidden_need": "lo que ella desea en la cama o en la intimidad sin decirlo",
   "risk_flag": "ninguno | conflicto_latente | agotamiento | necesita_espacio | crisis",
   "tactical_note": "instrucción técnica para el Coach sobre cómo abordarla",
-  "style_analysis": "estética detectada y su relación con su sensualidad hoy",
+  "style_analysis": "SI HAY IMAGEN: Describe con detalle su ropa, el entorno y lo que transmite su mirada. Si no hay, analiza el estilo técnico recibido.",
   "synergy_index": 0-100
 }
 

@@ -1,11 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
-import { redis, isConnected as isRedisConnected } from '../lib/redis';
 import { calculateCycleState } from '../services/cycleEngine.service';
 import { processChat, getOracleAdvice } from '../services/ai.service';
-
-// Cache en memoria para cuando Redis está offline
-const memoryCache: Record<string, string> = {};
 
 /**
  * Interfaces para mejorar el tipado
@@ -20,7 +16,7 @@ async function getPersonalityProfile(userId: string) {
 }
 
 /**
- * Handler principal para el chat interactivo (v3.0 Two-Agent System)
+ * Handler principal para el chat interactivo (v5.0 Unified Engine)
  */
 export const handleChat = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
@@ -63,7 +59,7 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
           .slice(-6)
       : [];
 
-    // 3. Orquestador de Dos Agentes (v3.0)
+    // 3. Orquestador Unificado (v5.0)
     const { response: aiResponse } = await processChat(userId, mensaje, image, trimmedHistory);
     
     return res.json({ response: aiResponse, fromCache: false });

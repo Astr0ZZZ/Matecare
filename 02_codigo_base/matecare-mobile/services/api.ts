@@ -3,11 +3,11 @@ import { supabase } from '../lib/supabase';
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const ENDPOINT_TIMEOUTS: Record<string, number> = {
-  '/ai/vision-chat': 35_000,       // Vision puede tardar hasta 30s con VPS frío
-  '/ai/calibrate-profile': 35_000, // Igual
-  '/ai/chat': 20_000,              // Chat estándar
-  '/ai/recommendation': 15_000,    // Recomendación diaria
-  default: 20_000,
+  '/ai/vision-chat': 45_000,       
+  '/ai/chat': 30_000,              
+  '/ai/recommendation': 45_000,    
+  '/dashboard': 45_000,            
+  default: 25_000,
 };
 
 export async function apiFetch(path: string, options?: RequestInit) {

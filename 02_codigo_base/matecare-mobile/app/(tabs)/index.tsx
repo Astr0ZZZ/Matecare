@@ -53,7 +53,7 @@ export default function Dashboard() {
           setIsWaitingForAI(true);
           if (!pollInterval.current) {
             console.log('[DASHBOARD] IA en proceso. Iniciando polling suave...');
-            pollInterval.current = setInterval(() => fetchData(true), 3000);
+            pollInterval.current = setInterval(() => fetchData(true), 5000);
           }
         } else {
           setIsWaitingForAI(false);
@@ -234,6 +234,7 @@ export default function Dashboard() {
                     description={mission.description}
                     progress={mission.progress}
                     category={mission.category || "General"}
+                    intensity={mission.intensity || "NORMAL"}
                     index={index}
                     onPress={() => handleUpdateMission(mission.id, mission.progress)}
                   />
@@ -254,6 +255,7 @@ export default function Dashboard() {
               <RecommendationCard 
                 title="Sabiduría del Oráculo"
                 content={dailyRec}
+                interpreter={summary?.recommendation?.interpreter}
               />
             </View>
             

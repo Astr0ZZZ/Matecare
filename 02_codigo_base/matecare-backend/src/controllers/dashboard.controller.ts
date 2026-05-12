@@ -39,7 +39,14 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     ];
 
     // 4. ORÁCULO ULTRA-RÁPIDO (Caché en 0ms)
-    const cachedAdvice = await getOracleAdvice(userId, true);
+    let cachedAdvice = await getOracleAdvice(userId, true);
+    
+    // Limpieza de basura (saludos antiguos pegados en la DB)
+    if (cachedAdvice) {
+      cachedAdvice = cachedAdvice.replace(/Hola soy tu compañero matecare,? ?/gi, '');
+      cachedAdvice = cachedAdvice.replace(/¿necesitas ayuda en algo o un consejo para tu relación\?? ?/gi, '');
+      cachedAdvice = cachedAdvice.replace(/Aquí está el reporte diario\.? ?/gi, '');
+    }
     
     // RESPUESTA INMEDIATA (Garantiza que la Ruleta cargue)
     res.json({
@@ -47,7 +54,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       cycle: cycleData,
       missions: existingMissions.length > 0 ? existingMissions : FALLBACK_MISSIONS,
       recommendation: {
-        text: cachedAdvice || "Sincronizando reporte táctico...",
+        text: (cachedAdvice && cachedAdvice.trim().length > 0) ? cachedAdvice.trim() : "Sincronizando reporte táctico...",
+        interpreter: (profile as any).lastInterpreterAnalysis, 
         isGenerating: !cachedAdvice
       }
     });

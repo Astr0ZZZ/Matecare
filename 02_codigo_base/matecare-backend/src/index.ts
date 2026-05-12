@@ -4,18 +4,16 @@ import dotenv from 'dotenv'
 
 // Importar rutas y controladores al inicio para evitar errores de referencia
 import profileRoutes from './routes/profile.routes'
-import cycleRoutes from './routes/cycle.routes'
 import missionRoutes from './routes/missions.routes'
 import aiRoutes from './routes/ai.routes';
-import notificationRoutes from './routes/notifications.routes';
+import cycleRoutes from './routes/cycle.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import { initNotificationScheduler } from './services/notificationScheduler.service'
-import { getDashboardSummary } from './controllers/dashboard.controller'
-import { requireAuth } from './middleware/auth.middleware'
 
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3001 // Forzamos 3001 que es el que usa el móvil
+const PORT = process.env.PORT || 3001
 
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
@@ -30,17 +28,18 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Registro de rutas
+// Registro de rutas (Con y sin prefijo /api para máxima compatibilidad)
 app.use('/api/profile', profileRoutes);
-app.use('/api/cycle', cycleRoutes);
 app.use('/api/missions', missionRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/cycle', cycleRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
-// Registro directo del Dashboard
-app.get('/api/dashboard/summary/:userId', requireAuth, getDashboardSummary);
-app.get('/api/dashboard/ping', (_req, res) => res.json({ status: 'ok', message: 'Dashboard is reachable' }));
-
-app.use('/api/notifications', notificationRoutes);
+// Aliases para compatibilidad directa si el móvil no usa /api
+app.use('/profile', profileRoutes);
+app.use('/missions', missionRoutes);
+app.use('/cycle', cycleRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // Catch-all para 404s
 app.use((req, res) => {

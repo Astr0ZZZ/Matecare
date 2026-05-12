@@ -37,8 +37,8 @@ export async function registerPushToken() {
       
       console.log('[NOTIFICATIONS] Token obtenido:', token);
       
-      // Registrar en nuestro backend
-      await apiFetch('/notifications/register-token', {
+      // Registrar en nuestro backend (Consolidado en v5.1 en la ruta de perfil)
+      await apiFetch('/profile/push-token', {
         method: 'POST',
         body: JSON.stringify({ token }),
       });

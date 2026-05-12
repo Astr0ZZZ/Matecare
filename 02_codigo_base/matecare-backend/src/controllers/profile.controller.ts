@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { calculateCycleState } from '../services/cycleEngine.service';
 import { mapQuizToPersonality } from '../services/personalityMapper.service';
 import { QuizAnswers } from '../types/personalityTypes';
 
@@ -91,6 +92,7 @@ export const getProfile = async (req: Request, res: Response) => {
 
   const humanize = (val: string) => VISION_TRANSLATIONS[val] || val;
 
+  console.log(`[Profile] Buscando perfil para UID: ${userId}...`);
   try {
     const profile = await prisma.partnerProfile.findUnique({
       where: { userId },
@@ -100,10 +102,15 @@ export const getProfile = async (req: Request, res: Response) => {
         }
       }
     });
+    console.log(`[Profile] Resultado PartnerProfile: ${profile ? 'Encontrado' : '404'}`);
 
     const personality = await prisma.personalityProfile.findUnique({ where: { userId } });
+    console.log(`[Profile] Resultado Personality: ${personality ? 'Encontrado' : 'No existe'}`);
 
-    if (!profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+    if (!profile) {
+      console.log(`[Profile] Devolviendo 404 para ${userId}`);
+      return res.status(404).json({ error: 'Perfil no encontrado' });
+    }
 
     // Humanizar preferencias para el móvil
     let humanizedPersonality = null;
@@ -178,5 +185,29 @@ export const updatePushToken = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[PUSH] Error registrando token:', error);
     res.status(500).json({ error: 'Failed to update push token' });
+  }
+};
+
+export const getCycleStatus = async (req: Request, res: Response) => {
+  const userId = req.params.userId || (req as any).user?.id;
+  
+  if (!userId) return res.status(401).json({ error: 'Identidad no válida' });
+
+  try {
+    const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+    if (!profile || !profile.lastPeriodDate) {
+      return res.status(404).json({ error: 'Perfil o fecha de ciclo no encontrada' });
+    }
+
+    const state = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
+
+    res.json({
+      ...state,
+      startDate: profile.lastPeriodDate,
+      totalLength: profile.cycleLength,
+      periodDuration: profile.periodDuration
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al calcular ciclo' });
   }
 };
