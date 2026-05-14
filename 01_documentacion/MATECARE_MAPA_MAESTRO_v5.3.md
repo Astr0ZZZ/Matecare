@@ -10,6 +10,8 @@
 *   **Sincronización de Visión V2:** Corregido bug de mapeo de llaves entre Python (CamelCase) y TypeScript (SnakeCase). Ahora las 5 capas de visión (Energía, Atmósfera, Estilo, Postura, Emoción) fluyen sin pérdidas.
 *   **Resiliencia del Motor:** Aumentado Timeout a 15s y ajustado Circuit Breaker (Threshold 10) para permitir el arranque pesado de modelos IA en Python.
 *   **UI Reactiva:** Implementado `useFocusEffect` en el Perfil de Pareja para actualización automática de datos tácticos al navegar.
+*   **Protocolo de Streaming Real:** Migración de `response.text()` a `response.body.getReader()` en el hook `useAIChat.ts`. Ahora la comunicación es asíncrona y palabra por palabra, eliminando cuellos de botella.
+*   **Desacoplamiento Táctico:** Eliminación de envío de metadatos (fase del ciclo) desde el móvil. El backend asume la responsabilidad total de consultar el contexto a través del Oráculo, simplificando el Front-End.
 *   **HUD Táctico v2:** Desplegado sistema de etiquetas de doble capa en el móvil (Visión Técnica + Visión Estética).
 
 ---

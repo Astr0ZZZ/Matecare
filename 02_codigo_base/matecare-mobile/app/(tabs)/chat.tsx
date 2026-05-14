@@ -22,12 +22,12 @@ export default function Chat() {
     if (!text) return null;
     const cleanText = text.replace(/(^|\n)\*\s/g, '$1• ');
     const parts = cleanText.split(/(\*\*.*?\*\*)/g);
-    
+
     return parts.map((part, index) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
           <Text key={index} style={[
-            styles.messageText, 
+            styles.messageText,
             isAi ? { color: theme.colors.text } : { color: '#000' },
             { fontFamily: theme.typography.boldFont }
           ]}>
@@ -37,7 +37,7 @@ export default function Chat() {
       }
       return (
         <Text key={index} style={[
-          styles.messageText, 
+          styles.messageText,
           isAi ? { color: theme.colors.textMuted } : { color: '#000' },
           { fontFamily: theme.typography.bodyFont }
         ]}>
@@ -57,8 +57,8 @@ export default function Chat() {
   };
 
   return (
-    <LinearGradient 
-      colors={[theme?.colors?.background || '#044422', theme?.colors?.primary || '#044422']} 
+    <LinearGradient
+      colors={[theme?.colors?.background || '#044422', theme?.colors?.primary || '#044422']}
       style={styles.container}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -73,7 +73,7 @@ export default function Chat() {
           </TouchableOpacity>
         </View>
 
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           style={{ flex: 1 }}
@@ -93,14 +93,14 @@ export default function Chat() {
                     <View style={styles.onlineDot} />
                   </View>
                 )}
-                
-                <MotiView 
+
+                <MotiView
                   from={{ opacity: 0, scale: 0.9, translateY: 10 }}
                   animate={{ opacity: 1, scale: 1, translateY: 0 }}
                   style={[
                     styles.bubble,
-                    item.emisor === 'ia' 
-                      ? [styles.aiBubble, { backgroundColor: theme?.colors?.card || 'rgba(255,255,255,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }] 
+                    item.emisor === 'ia'
+                      ? [styles.aiBubble, { backgroundColor: theme?.colors?.card || 'rgba(255,255,255,0.1)', borderColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]
                       : [styles.userBubble, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }]
                   ]}
                 >
@@ -108,7 +108,7 @@ export default function Chat() {
                     {item.text ? renderFormattedText(item.text, item.emisor === 'ia') : null}
                   </Text>
                 </MotiView>
-                
+
                 <Text style={[styles.timestamp, { alignSelf: item.emisor === 'ia' ? 'flex-start' : 'flex-end', color: theme.colors.textMuted }]}>
                   {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
@@ -125,7 +125,7 @@ export default function Chat() {
               <Ionicons name="mic-outline" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity> 
             */}
-            <TextInput 
+            <TextInput
               style={[styles.input, { backgroundColor: 'rgba(255,255,255,0.05)', color: theme?.colors?.text || '#FFF', fontFamily: theme?.typography?.bodyFont }]}
               placeholder="Escribe tu mensaje..."
               placeholderTextColor={theme?.colors?.textMuted || '#8F8F8F'}
@@ -136,8 +136,8 @@ export default function Chat() {
               onSubmitEditing={handleSend}
               returnKeyType="send"
             />
-            <TouchableOpacity 
-              style={[styles.sendButton, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }, cargando && { opacity: 0.5 }]} 
+            <TouchableOpacity
+              style={[styles.sendButton, { backgroundColor: theme?.colors?.accent || '#CFAA3C' }, cargando && { opacity: 0.5 }]}
               onPress={handleSend}
               disabled={cargando}
             >

@@ -74,7 +74,7 @@ export const useAIChat = () => {
     }
   }, [mensajes]);
 
-  const enviarMensaje = async (texto: string, faseActual: string) => {
+  const enviarMensaje = async (texto: string) => {
     const nuevoMensaje: Message = {
       id: Date.now().toString(),
       text: texto,
@@ -108,7 +108,6 @@ export const useAIChat = () => {
         },
         body: JSON.stringify({
           mensaje: texto,
-          faseActual,
           history: mensajes.slice(-6).map(m => ({
             role: m.emisor === 'usuario' ? 'user' : 'assistant',
             content: m.text.slice(0, 150)
@@ -118,33 +117,52 @@ export const useAIChat = () => {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      // [FALLBACK PARA REACT NATIVE / HERMES]
-      // Hermes no soporta ReadableStream de forma nativa. Esperamos el texto completo.
-      const text = await response.text();
-      const lines = text.split('\n').filter((l: string) => l.startsWith('data: '));
-
+      // [STREAMING REAL-TIME] 
+      // Leemos línea por línea conforme llegan del servidor
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let mensajeFinalIA = '';
       
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line.slice(6));
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          // Solo acumulamos los tokens que son parte de la respuesta
-          if (parsed.token && parsed.token !== "Límite táctico alcanzado. Reflexiona sobre las tácticas entregadas.") {
-            mensajeFinalIA += parsed.token;
-          }
-          
-          if (parsed.error) {
-            mensajeFinalIA = parsed.token || "Error de conexión.";
-          }
-        } catch (e) {
-          // Ignorar
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line.slice(6));
+
+            if (parsed.status) {
+              // Mostramos estados intermedios (ej: "Analizando...")
+              setMensajes((prev) => prev.map(m =>
+                m.id === aiMsgId ? { ...m, text: `⏳ ${parsed.status}` } : m
+              ));
+            }
+
+            if (parsed.token) {
+              // Si es el primer token, limpiamos el status "Analizando..."
+              if (mensajeFinalIA === '') {
+                mensajeFinalIA = parsed.token;
+              } else {
+                mensajeFinalIA += parsed.token;
+              }
+
+              // Actualización parcial para efecto "máquina de escribir"
+              setMensajes((prev) => prev.map(m =>
+                m.id === aiMsgId ? { ...m, text: mensajeFinalIA } : m
+              ));
+            }
+          } catch (e) { /* Ignorar chunks incompletos */ }
         }
       }
 
-      // Actualizamos la UI una sola vez con el mensaje limpio
+      // Al finalizar, aseguramos el estado final
+      if (!mensajeFinalIA) mensajeFinalIA = "Táctica establecida.";
+      
       setMensajes((prev) => prev.map(m =>
-        m.id === aiMsgId ? { ...m, text: mensajeFinalIA || "Táctica establecida." } : m
+        m.id === aiMsgId ? { ...m, text: mensajeFinalIA } : m
       ));
 
     } catch (error) {
