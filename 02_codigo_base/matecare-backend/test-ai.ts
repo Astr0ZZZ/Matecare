@@ -1,0 +1,1 @@
+import { OpenAI } from 'openai'; import dotenv from 'dotenv'; dotenv.config(); const openai = new OpenAI(); async function test() { try { await openai.chat.completions.create({ model: 'gpt-5-nano', messages: [{ role: 'user', content: 'test' }] }); } catch (err: any) { console.error('API ERROR:', err.message); } } test();

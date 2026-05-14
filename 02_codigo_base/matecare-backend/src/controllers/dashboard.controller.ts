@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { generateMissions, getOracleAdvice } from '../services/ai.service';
+import { getOracleAdvice } from '../services/ai.service';
 
 /**
  * Dashboard Táctico V3.0 - Optimizado para Velocidad Extrema
@@ -48,6 +48,18 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       cachedAdvice = cachedAdvice.replace(/Aquí está el reporte diario\.? ?/gi, '');
     }
     
+    // Control de antigüedad del análisis (6 horas máximo)
+    const adviceUpdatedAt = (profile as any).adviceUpdatedAt;
+    const isAnalysisOld = !adviceUpdatedAt || (today.getTime() - new Date(adviceUpdatedAt).getTime()) > 6 * 60 * 60 * 1000;
+    
+    let finalInterpreter = (profile as any).lastInterpreterAnalysis;
+    if (isAnalysisOld || !finalInterpreter) {
+      finalInterpreter = {
+        real_state: "Análisis Pendiente",
+        style_analysis: "Sin contexto visual",
+      };
+    }
+
     // RESPUESTA INMEDIATA (Garantiza que la Ruleta cargue)
     res.json({
       profile,
@@ -55,7 +67,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       missions: existingMissions.length > 0 ? existingMissions : FALLBACK_MISSIONS,
       recommendation: {
         text: (cachedAdvice && cachedAdvice.trim().length > 0) ? cachedAdvice.trim() : "Sincronizando reporte táctico...",
-        interpreter: (profile as any).lastInterpreterAnalysis, 
+        interpreter: null,  // Los chips internos van en Vision Control, no en el Dashboard
         isGenerating: !cachedAdvice
       }
     });

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { processChat, getOracleAdvice } from '../services/ai.service';
+import { processChat, processChatStream } from '../services/ai.service';
 
 /**
  * Interfaces para mejorar el tipado
@@ -34,11 +34,11 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
       return res.status(422).json({ error: 'Partner profile is missing cycle data (lastPeriodDate)' });
     }
 
-    // 1. Lógica de Límites (3 preguntas máximo)
+    // 1. Lógica de Límites (DESHABILITADO TEMPORALMENTE PARA DESARROLLO)
+    /*
     const userMessagesCount = Array.isArray(history) 
       ? history.filter((h: any) => h.role === 'user').length 
       : 0;
-
 
     if (userMessagesCount >= 3) {
       return res.json({ 
@@ -46,6 +46,7 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
         fromCache: true 
       });
     }
+    */
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -71,39 +72,74 @@ export const handleChat = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * Obtener recomendación diaria basada en el ciclo
- */
-export const getDailyRecommendation = async (req: AuthRequest, res: Response) => {
+export const handleChatStream = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
-  
+  const { mensaje, history } = req.body;
+  console.log(`[DEBUG] handleChatStream RECIBIDO - User: ${userId}, Mensaje: ${mensaje}`);
+
   if (!userId) {
+    console.error('[DEBUG] Error: userId no encontrado en la request');
     return res.status(401).json({ error: 'User ID is required' });
   }
 
   try {
+    console.log('[DEBUG] Buscando perfil...');
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+    if (!profile) return res.status(404).json({ error: 'Partner profile not found' });
+    if (!profile.lastPeriodDate) return res.status(422).json({ error: 'Missing cycle data' });
 
-    if (!profile.lastPeriodDate) {
-      return res.status(422).json({ error: 'Partner profile is missing cycle data (lastPeriodDate)' });
+    const userMessagesCount = Array.isArray(history)
+      ? history.filter((h: any) => h.role === 'user').length : 0;
+
+    console.log(`[DEBUG] Perfil encontrado. Mensajes de usuario en historial: ${userMessagesCount}`);
+
+    // [DESACTIVADO PARA PRUEBAS] Límite de 3 mensajes
+    /*
+    if (userMessagesCount >= 3) {
+      console.log('[DEBUG] Límite de 3 mensajes alcanzado. Retornando early exit.');
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.write(`data: ${JSON.stringify({ token: "Límite táctico alcanzado. Reflexiona sobre las tácticas entregadas.", done: true })}\n\n`);
+      return res.end();
+    }
+    */
+
+    const trimmedHistory = Array.isArray(history)
+      ? history.filter((h: any) => (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string')
+               .slice(-6)
+               .map((h: any) => ({ role: h.role, content: h.content.slice(0, 150) }))
+      : [];
+
+    // Headers SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // Fase 1: Agente 1 (sin stream — necesitamos el JSON completo)
+    res.write(`data: ${JSON.stringify({ status: "Analizando situación táctica..." })}\n\n`);
+    console.log('[DEBUG] Llamando a processChatStream (Etapa Doble Agente)...');
+    const { response, interpreter } = await processChatStream(userId, mensaje, trimmedHistory, res);
+    console.log('[DEBUG] processChatStream finalizado.');
+
+    // Guardar interpreter
+    if (interpreter) {
+      await prisma.partnerProfile.update({
+        where: { userId },
+        data: { lastInterpreterAnalysis: interpreter } as any
+      }).catch(() => {});
     }
 
-    const cycle = calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration);
+    prisma.aIInteraction.create({
+      data: { userId, userInput: mensaje, aiResponse: response, phaseContext: 'FOLLICULAR' as any, promptTokens: 0 }
+    }).catch(() => {});
 
-    // Obtener recomendación usando el Oráculo (Él ya maneja su propio caché interno de 20h)
-    const aiResponse = await getOracleAdvice(userId);
-
-    return res.json({ 
-      recommendation: aiResponse, 
-      cycle, 
-      fromCache: true // Siempre true si viene del service optimizado
-    });
-
-
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
 
   } catch (error) {
-    console.error('Recommendation error:', error);
-    return res.status(500).json({ error: 'Failed to get daily recommendation' });
+    console.error('Chat stream error:', error);
+    res.write(`data: ${JSON.stringify({ error: true, token: "Error de conexión con el centro de mando." })}\n\n`);
+    res.end();
   }
 };
+

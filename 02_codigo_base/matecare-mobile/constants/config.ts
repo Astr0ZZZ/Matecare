@@ -1,4 +1,4 @@
 export const CONFIG = {
   TEST_USER_ID: "00000000-0000-0000-0000-000000000000",
-  API_URL: process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.116:3000",
+  API_URL: process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.14:3001",
 };

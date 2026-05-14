@@ -13,6 +13,6 @@ router.post('/', requireAuth, saveProfile);
 router.get('/', requireAuth, getProfile); 
 router.post('/push-token', requireAuth, updatePushToken);
 router.get('/current/:userId', requireAuth, getCycleStatus);
-router.get('/leaderboard/all', requireAuth, getRanking);
+router.get('/leaderboard/all', getRanking);
 
 export default router;

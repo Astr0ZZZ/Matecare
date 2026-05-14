@@ -27,6 +27,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { apiFetch } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -37,12 +38,19 @@ export function useVisionChat() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     response: string;
+    description?: string;
     emotionDetected: string;
     authenticityLabel?: string;
     isSuppressed?: boolean;
     hasDiscrepancy?: boolean;
     bodyLanguage?: string;
     sceneCategory?: string;
+    clothingStyle?: string;
+    environment?: string;
+    energyAppearance?: string;
+    timeOfDayHint?: string;
+    ambientMood?: string;
+    clothingTone?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,13 +70,22 @@ export function useVisionChat() {
 
       setResult({
         response: chatData.response,
+        description: chatData.interpreter?.style_analysis,
         emotionDetected: chatData.vision?.emotional_tone || "Neutral",
-        authenticityLabel: chatData.vision?.emotional_tone,
-        isSuppressed: chatData.vision?.suppression_detected,
-        hasDiscrepancy: chatData.vision?.visual_discrepancy,
-        bodyLanguage: chatData.vision?.pose_analysis?.posture,
-        sceneCategory: chatData.vision?.environment_context,
+        authenticityLabel: chatData.vision?.authenticityLabel || chatData.vision?.emotional_tone,
+        isSuppressed: chatData.vision?.suppression_detected || chatData.vision?.isSuppressed,
+        hasDiscrepancy: chatData.vision?.visual_discrepancy || chatData.vision?.hasDiscrepancy,
+        bodyLanguage: chatData.vision?.bodyLanguage || chatData.vision?.pose_analysis?.posture,
+        sceneCategory: chatData.vision?.sceneCategory || chatData.vision?.environment_context,
+        clothingStyle: chatData.vision?.style || chatData.vision?.estimated_style,
+        environment: chatData.vision?.environment || chatData.vision?.environment_context,
+        energyAppearance: chatData.vision?.energyAppearance,
+        timeOfDayHint: chatData.vision?.timeOfDayHint,
+        ambientMood: chatData.vision?.ambientMood,
+        clothingTone: chatData.vision?.clothingTone,
       });
+
+      await AsyncStorage.setItem('lastVisionUpdate', Date.now().toString());
 
     } catch (e: any) {
       setError(e.message || "Error en el procesamiento");
@@ -320,6 +337,57 @@ export default function VisionScanScreen() {
               )}
             </View>
 
+            {/* Tags de Capas Técnicas */}
+            <View style={styles.tagsRow}>
+              {result.environment && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>📍 {result.environment.toUpperCase()}</Text>
+                </View>
+              )}
+              {result.clothingStyle && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>👕 {result.clothingStyle.toUpperCase()}</Text>
+                </View>
+              )}
+              {result.bodyLanguage && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>🧍 {result.bodyLanguage.toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Capa de Contexto Profundo (V2) */}
+            <View style={[styles.tagsRow, { marginTop: -8 }]}>
+              {result.energyAppearance && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(207, 170, 100, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.accent }]}>⚡ ENERGÍA {result.energyAppearance.toUpperCase()}</Text>
+                </View>
+              )}
+              {result.timeOfDayHint && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>🕐 {result.timeOfDayHint.toUpperCase()}</Text>
+                </View>
+              )}
+              {result.ambientMood && (
+                <View style={[styles.tag, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Text style={[styles.tagText, { color: theme.colors.textMuted }]}>✨ {result.ambientMood.toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Descripción Visual de la IA */}
+            {result.description && (
+              <View style={styles.descriptionBox}>
+                <Text style={[styles.descriptionLabel, { color: theme.colors.accent }]}>DETECCIÓN VISUAL:</Text>
+                <Text style={[styles.descriptionText, { color: theme.colors.textMuted }]}>
+                  "{result.description}"
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.divider} />
+
+            <Text style={[styles.responseLabel, { color: theme.colors.accent }]}>CONSEJO TÁCTICO:</Text>
             <Text style={[styles.responseText, { color: theme.colors.text, fontFamily: theme.typography.bodyFont }]}>
               {result.response}
             </Text>
@@ -391,7 +459,12 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   tagText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  descriptionBox: { marginBottom: 20, padding: 12, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#CFAA64' },
+  descriptionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  descriptionText: { fontSize: 14, fontStyle: 'italic', lineHeight: 20 },
+  responseLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
   responseText: { fontSize: 17, lineHeight: 26, marginBottom: 24 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 20 },
   resetBtn: { alignSelf: 'center', padding: 12 },
   resetText: { fontSize: 12, fontWeight: '800', letterSpacing: 2 }
 });

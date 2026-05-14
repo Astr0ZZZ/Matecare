@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function PartnerDetails() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
 
-  useEffect(() => {
-    apiFetch('/profile')
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      apiFetch('/profile')
+        .then(setData)
+        .finally(() => setLoading(false));
+    }, [])
+  );
 
   if (loading) {
     return (
@@ -51,25 +54,35 @@ export default function PartnerDetails() {
             
             <View style={styles.traitRow}>
               <Ionicons name="happy" size={16} color={theme.colors.accent} />
-              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Última Emoción: {prefs.dominantEmotion || 'Neutral'}</Text>
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Última Emoción: {data?.lastEmotion || 'Neutral'}</Text>
             </View>
 
             <View style={styles.traitRow}>
               <Ionicons name="shirt" size={16} color={theme.colors.accent} />
-              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Estilo: {prefs.style || 'No calibrado'}</Text>
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Estilo: {data?.visualStyle || 'No calibrado'}</Text>
             </View>
 
-            <View style={styles.traitRow}>
-              <Ionicons name="calendar" size={16} color={theme.colors.accent} />
-              <Text style={[styles.bodyText, { color: theme.colors.text }]}>Edad estimada: {prefs.estimatedAge || 'N/A'}</Text>
+            {/* Nuevas capas V2 */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 5 }}>
+               {data?.visionAnalysis?.energyAppearance && (
+                 <Text style={[styles.miniTag, { color: theme.colors.accent }]}>⚡ {data.visionAnalysis.energyAppearance.toUpperCase()}</Text>
+               )}
+               {data?.visionAnalysis?.environment && (
+                 <Text style={[styles.miniTag, { color: theme.colors.textMuted }]}>📍 {data.visionAnalysis.environment.toUpperCase()}</Text>
+               )}
+               {data?.visionAnalysis?.bodyLanguage && (
+                 <Text style={[styles.miniTag, { color: theme.colors.textMuted }]}>🧍 {data.visionAnalysis.bodyLanguage.toUpperCase()}</Text>
+               )}
             </View>
-
-            <View style={styles.traitRow}>
-              <Ionicons name="time" size={16} color={theme.colors.textMuted} />
-              <Text style={[styles.bodyText, { color: theme.colors.textMuted, fontSize: 10 }]}>
-                Sincronizado: {prefs.lastCalibration ? new Date(prefs.lastCalibration).toLocaleDateString() : 'Nunca'}
-              </Text>
-            </View>
+            
+            {data?.lastVisionDescription && (
+              <View style={[styles.traitRow, { marginTop: 15, alignItems: 'flex-start' }]}>
+                <Ionicons name="eye" size={16} color={theme.colors.accent} style={{ marginTop: 2 }} />
+                <Text style={[styles.bodyText, { color: theme.colors.text, flex: 1, fontStyle: 'italic', fontSize: 13 }]}>
+                  "{data.lastVisionDescription}"
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Preferences Info */}
@@ -98,5 +111,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 2, marginBottom: 10 },
   mbtiText: { fontSize: 32, fontWeight: 'bold', marginBottom: 5 },
   bodyText: { fontSize: 14, marginBottom: 5 },
-  traitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }
+  traitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  miniTag: { fontSize: 10, fontWeight: '900', letterSpacing: 1, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }
 });

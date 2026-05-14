@@ -3,6 +3,7 @@ import * as cycleEngine from './cycleEngine.service';
 import * as visionService from './visionAnalysis.service';
 import { INTERPRETER_SYSTEM_PROMPT } from '../prompts/interpreter.prompt';
 import { COPILOT_SYSTEM_PROMPT } from '../prompts/copilot.prompt';
+import { ROUTER_SYSTEM_PROMPT } from '../prompts/router.prompt';
 import {
   PHASE_TACTICAL_CONTEXT,
   MBTI_DESCRIPTIONS,
@@ -12,9 +13,11 @@ import {
 import { MBTIType, AttachmentStyle } from '../types/personalityTypes';
 import OpenAI from 'openai';
 
-const MODEL = "gpt-5-nano"; // no cambiar Modelo sin preguntar si o si es gpt 5 nano por ahora . 
+const MODEL = "gpt-5-nano"; // 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 
 export interface Message {
@@ -76,13 +79,30 @@ export function humanize(val: string | null | undefined): string {
 
 function cleanTacticalResponse(text: string): string {
   return text
-    .replace(/\[.*?\]/g, "") 
-    .replace(/\{.*?\}/g, "") 
+    .replace(/\[.*?\]/g, "")
+    .replace(/\{.*?\}/g, "")
     .replace(/Hola soy tu compañero matecare,? ?/gi, '')
     .replace(/¿necesitas ayuda en algo o un consejo para tu relación\?? ?/gi, '')
     .replace(/Aquí está el reporte diario\.? ?/gi, '')
-    .replace(/\s+/g, " ") 
+    .replace(/A sus órdenes\.? ?/gi, '')
+    .replace(/Calibrando táctica\.{0,3} ?/gi, '')
+    .replace(/Escucha esto:? ?/gi, '')
+    .replace(/Atención:? ?/gi, '')
+    .replace(/Coach aquí\.? ?/gi, '')
+    .replace(/^\s*[.,;:]\s*/, '')
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+function extractJSON(text: string): any {
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("JSON parse error on:", text);
+    throw e;
+  }
 }
 
 
@@ -91,39 +111,42 @@ function cleanTacticalResponse(text: string): string {
  * Agente 1: La Intérprete (Análisis Psicológico)
  * Agente 2: El Copiloto (Acción Táctica)
  */
-async function runUnifiedTacticalAI(context: any, userMessage: string, type: 'DASHBOARD' | 'CHAT', imageBase64?: string): Promise<any> {
+async function runUnifiedTacticalAI(context: any, userMessage: string, type: 'DASHBOARD' | 'CHAT', imageBase64?: string, history: Message[] = []): Promise<any> {
   try {
-    // --- ETAPA 1: LA INTÉRPRETE (Análisis Psicológico Femenino) ---
+    // --- ETAPA 1: LA INTÉRPRETE (Análisis Psicológico de la NOVIA) ---
     const interpreterInstructions = `
     ${INTERPRETER_SYSTEM_PROMPT}
-    Tu único objetivo es analizar la situación y entregar un JSON técnico de interpretación.
+    Analiza los datos de LA NOVIA y entrega un JSON técnico para El Copiloto.
     `.trim();
 
     const mbtiDesc = context.personality?.mbtiType ? (MBTI_DESCRIPTIONS[context.personality.mbtiType as MBTIType] || "") : "";
     const attachmentDesc = context.personality?.attachmentStyle ? (ATTACHMENT_DESCRIPTIONS[context.personality.attachmentStyle as AttachmentStyle] || "") : "";
     const phaseContextDesc = PHASE_TACTICAL_CONTEXT[context.cycle.phase as keyof typeof PHASE_TACTICAL_CONTEXT] || "";
 
-    // Gustos y Preferencias
+    // Gustos y Preferencias de ELLA
     const prefs = context.personality?.preferences || {};
     const musicDesc = PREFERENCE_DESCRIPTIONS.music[prefs.music as keyof typeof PREFERENCE_DESCRIPTIONS.music] || "";
     const plansDesc = PREFERENCE_DESCRIPTIONS.plans[prefs.plans as keyof typeof PREFERENCE_DESCRIPTIONS.plans] || "";
     const stressDesc = PREFERENCE_DESCRIPTIONS.stressedNeeds[prefs.stressedNeeds as keyof typeof PREFERENCE_DESCRIPTIONS.stressedNeeds] || "";
 
     const interpreterInput = `
-    BIOLOGÍA: Fase ${context.cycle.phase}, Día ${context.cycle.dayOfCycle}
-    CONTEXTO BIOLÓGICO: ${phaseContextDesc}
+    === DATOS DE LA NOVIA (la pareja del usuario) ===
+    CICLO DE ELLA: Fase ${context.cycle.phase}, Día ${context.cycle.dayOfCycle}
+    CONTEXTO BIOLÓGICO DE ELLA: ${phaseContextDesc}
     
-    PERFIL PSICOLÓGICO:
-    - MBTI: ${context.personality?.mbtiType} (${mbtiDesc})
-    - APEGO: ${context.personality?.attachmentStyle} (${attachmentDesc})
+    PERFIL PSICOLÓGICO DE ELLA:
+    - MBTI de ella: ${context.personality?.mbtiType} (${mbtiDesc})
+    - Estilo de apego de ella: ${context.personality?.attachmentStyle} (${attachmentDesc})
     
-    GUSTOS Y PREFERENCIAS:
-    - MÚSICA: ${musicDesc}
-    - PLANES: ${plansDesc}
-    - NECESIDAD BAJO ESTRÉS: ${stressDesc}
+    GUSTOS DE ELLA:
+    - Música que le gusta: ${musicDesc}
+    - Planes que prefiere: ${plansDesc}
+    - Lo que necesita bajo estrés: ${stressDesc}
     
-    VISIÓN_LOCAL: ${JSON.stringify(context.vision.technical || {})}
-    MENSAJE/ORDEN: ${userMessage}
+    DATOS VISUALES DE ELLA: ${JSON.stringify(context.vision.technical || {})}
+    
+    === PEDIDO DEL NOVIO (el usuario) ===
+    ${userMessage}
     `.trim();
 
     console.log("[Doble-Agente] Iniciando Etapa 1: La Intérprete...");
@@ -131,85 +154,81 @@ async function runUnifiedTacticalAI(context: any, userMessage: string, type: 'DA
     const userContent: any[] = [{ type: "text", text: interpreterInput }];
 
     if (imageBase64) {
+      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       userContent.push({
         type: "image_url",
         image_url: {
-          url: `data:image/jpeg;base64,${imageBase64}`
+          url: `data:image/jpeg;base64,${cleanBase64}`
         }
       });
     }
 
-    const interpreterRes = await fetch(OPENAI_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: interpreterInstructions },
-          { role: "user", content: userContent }
-        ],
-        max_tokens: 1000,
-        temperature: 0.5,
-        response_format: { type: "json_object" }
-      })
+    const interpreterRes = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: interpreterInstructions },
+        { role: "user", content: userContent }
+      ],
+      response_format: { type: "json_object" }
     });
 
-    if (!interpreterRes.ok) throw new Error("Error en Agente 1 (Intérprete)");
-    const interpreterData = await interpreterRes.json() as any;
-    const rawInterpreterText = interpreterData.choices[0].message.content;
-    const interpreterAnalysis = JSON.parse(rawInterpreterText.replace(/```json\n?/, "").replace(/```\n?$/, "").trim());
+    const rawInterpreterText = interpreterRes.choices[0].message.content;
+    console.log("[Agente1] finish_reason:", interpreterRes.choices[0].finish_reason, "content length:", rawInterpreterText?.length || 0);
+    if (!rawInterpreterText) throw new Error("Agente 1 devolvió content null. finish_reason: " + interpreterRes.choices[0].finish_reason);
+    const interpreterAnalysis = extractJSON(rawInterpreterText);
 
     console.log("[Doble-Agente] Análisis de la Intérprete completado.");
 
-    // --- ETAPA 2: EL COPILOTO (Acción Táctica Masculina) ---
+    // --- ETAPA 2: EL COPILOTO (Coach del NOVIO) ---
     const copilotInstructions = `
     ${COPILOT_SYSTEM_PROMPT}
     
-    ESTRATEGIA: Estás en modo ${type}.
-    RECIBES EL ANÁLISIS DE LA INTÉRPRETE Y DEBES ACTUAR COMO MATECARE COACH.
+    MODO ACTUAL: ${type}
+    Recuerdas: tú le hablas al NOVIO (usuario). La Intérprete te da info sobre la NOVIA.
     
     LIMITANTES DE RESPUESTA (ESTRICTO):
-    - MISIONES: Máximo 15 PALABRAS por descripción.
-    - ORÁCULO (DASHBOARD): Entre 30 y 45 PALABRAS.
-    - CHAT: Máximo 25 PALABRAS.
+    - Cada "description" de misión: MÁXIMO 12 PALABRAS. Son acciones que ÉL (novio) hace para ELLA.
+    - Si mode=DASHBOARD: "response" = consejo para el NOVIO de MÁXIMO 40 PALABRAS. SIN saludos. Ve DIRECTO.
+    - Si mode=CHAT: "response" = MÁXIMO 25 PALABRAS. Una frase para el novio.
 
-    FORMATO DE SALIDA (JSON ESTRICTO):
+    FORMATO DE SALIDA (JSON ESTRICTO, sin texto fuera del JSON):
     {
-      "response": "Tu mensaje aquí siguiendo las limitantes y saludando de forma táctica (no robótica)",
+      "response": "consejo directo para el novio sobre cómo actuar con ella",
       "missions": [
-        {"title": "PHYSICAL", "description": "max 15 palabras", "category": "PHYSICAL", "intensity": "NORMAL"},
-        {"title": "HOT_TACTIC", "description": "MISIÓN ROJA: alta intensidad, max 15 palabras", "category": "ROMANTIC", "intensity": "HOT"},
-        {"title": "QUALITY", "description": "max 15 palabras", "category": "QUALITY", "intensity": "NORMAL"}
+        {"title": "PHYSICAL", "description": "acción que ÉL hace para ELLA max 12 palabras", "category": "PHYSICAL", "intensity": "NORMAL"},
+        {"title": "HOT_TACTIC", "description": "misión audaz que ÉL le hace a ELLA max 12 palabras", "category": "ROMANTIC", "intensity": "HOT"},
+        {"title": "QUALITY", "description": "acción que ÉL hace para ELLA max 12 palabras", "category": "QUALITY", "intensity": "NORMAL"}
       ]
     }
     `.trim();
 
     const copilotInput = `
-    LECTURA INTERNA (De La Intérprete): ${JSON.stringify(interpreterAnalysis)}
-    PEDIDO DEL USUARIO: ${userMessage}
+    EL NOVIO (usuario) dice: "${userMessage}"
+    
+    REPORTE DE LA INTÉRPRETE SOBRE LA NOVIA (usa esto para aconsejar al novio):
+    ${JSON.stringify(interpreterAnalysis)}
     `.trim();
 
     console.log("[Doble-Agente] Iniciando Etapa 2: El Copiloto...");
 
-    const copilotRes = await fetch(OPENAI_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: "gpt-5-nano",
-        messages: [
-          { role: "system", content: copilotInstructions },
-          { role: "user", content: copilotInput }
-        ],
-        max_tokens: 1000,
-        temperature: 0.8,
-        response_format: { type: "json_object" }
-      })
+    // Solo mantenemos los mensajes de texto del historial para no confundir al modelo con imágenes pasadas
+    const cleanHistory = history.map(m => ({ role: m.role, content: m.content }));
+
+    const copilotMessages: any[] = [
+      { role: "system", content: copilotInstructions },
+      ...cleanHistory,
+      { role: "user", content: copilotInput }
+    ];
+
+    const copilotRes = await openai.chat.completions.create({
+      model: MODEL,
+      messages: copilotMessages,
+      response_format: { type: "json_object" }
     });
 
-    if (!copilotRes.ok) throw new Error("Error en Agente 2 (Copiloto)");
-    const copilotData = await copilotRes.json() as any;
-    const rawCopilotText = copilotData.choices[0].message.content;
-    const copilotFinal = JSON.parse(rawCopilotText.replace(/```json\n?/, "").replace(/```\n?$/, "").trim());
+    const rawCopilotText = copilotRes.choices[0].message.content;
+    if (!rawCopilotText) throw new Error("Error en Agente 2 (Copiloto)");
+    const copilotFinal = extractJSON(rawCopilotText);
 
     return {
       interpreter: interpreterAnalysis,
@@ -217,8 +236,9 @@ async function runUnifiedTacticalAI(context: any, userMessage: string, type: 'DA
       missions: copilotFinal.missions || [],
       styleAnalysis: interpreterAnalysis.style_analysis || "Análisis visual completado."
     };
-  } catch (error) {
-    console.error("[GPT-5-NANO] Error Crítico:", error);
+  } catch (error: any) {
+    console.error("[GPT-5-NANO] Error Crítico:", error?.message || error);
+    console.error("[GPT-5-NANO] Status:", error?.status, "Code:", error?.code);
     return {
       interpreter: { real_state: "Sincronizando", synergy_index: 95 },
       response: "Ajustando táctica de precisión. Mantén la posición.",
@@ -261,7 +281,7 @@ async function getUnifiedContext(userId: string, imageBase64?: string) {
     cycle: { ...cycleState, cycleLength: profileData.cycleLength },
     personality,
     vision: {
-      technical: technicalVision || {},
+      technical: technicalVision && Object.keys(technicalVision).length > 0 ? technicalVision : "Sin datos técnicos locales",
       descriptive: (profileData as any).lastVisionDescription || "Sin contexto visual previo"
     },
     history: emotionalHistory
@@ -283,7 +303,7 @@ const activeGenerations = new Set<string>();
 /**
  * EXPORT: ORÁCULO (Persistencia Real en DB)
  */
-export async function getOracleAdvice(userId: string, onlyCache = false): Promise<string | null> {
+export async function getOracleAdvice(userId: string, onlyCache = false, forceRegenerate = false): Promise<string | null> {
   const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
   if (!profile) return null;
 
@@ -291,8 +311,8 @@ export async function getOracleAdvice(userId: string, onlyCache = false): Promis
   const lastAdvice = (profile as any).lastAdvice;
   const lastUpdate = (profile as any).adviceUpdatedAt;
 
-  // Cache de 20 horas
-  if (lastAdvice && lastUpdate && (now.getTime() - new Date(lastUpdate).getTime()) < 20 * 60 * 60 * 1000) {
+  // Cache de 20 horas (bypass con forceRegenerate)
+  if (!forceRegenerate && lastAdvice && lastUpdate && (now.getTime() - new Date(lastUpdate).getTime()) < 20 * 60 * 60 * 1000) {
     return lastAdvice;
   }
 
@@ -332,7 +352,7 @@ export async function getOracleAdvice(userId: string, onlyCache = false): Promis
             title: m.title,
             description: m.description,
             category: m.category,
-            intensity: m.intensity || 'NORMAL',
+            intensity: ['HOT', 'HEAT', 'hot', 'heat'].includes(m.intensity) ? 'HOT' : 'NORMAL',
             phaseContext: (cycle.phase as string).toUpperCase() as any
           } as any
         }))
@@ -359,11 +379,21 @@ export async function processChat(
   history: Message[] = []
 ): Promise<{ response: string, vision: any, styleAnalysis?: string, interpreter?: any }> {
   const context = await getUnifiedContext(userId, imageBase64);
-  const result = await runUnifiedTacticalAI(context, userMessage, "CHAT", imageBase64);
+  const result = await runUnifiedTacticalAI(context, userMessage, "CHAT", imageBase64, history);
 
   prisma.aIInteraction.create({
     data: { userId, userInput: userMessage, aiResponse: result.response, phaseContext: context.cycle.phase as any, promptTokens: 0 }
   }).catch(() => { });
+
+  if (result.interpreter) {
+    await prisma.partnerProfile.update({
+      where: { userId },
+      data: {
+        lastInterpreterAnalysis: result.interpreter,
+        lastVisionDescription: result.styleAnalysis || undefined
+      } as any
+    }).catch(() => { });
+  }
 
   return {
     response: result.response,
@@ -374,36 +404,178 @@ export async function processChat(
 }
 
 /**
- * EXPORT: GENERACIÓN DE MISIONES (Legacy Support)
+ * ═══════════════════════════════════════════════════════════
+ * AGENTE 0: EL ROUTER (Clasificador de Intenciones)
+ * Usa GPT-5 Nano para decidir si el mensaje es casual o táctico.
+ * Más inteligente que regex: entiende contexto y mensajes mixtos.
+ * ═══════════════════════════════════════════════════════════
  */
-export async function generateMissions(userId: string): Promise<any[]> {
+async function classifyIntent(userMessage: string): Promise<'CASUAL' | 'TACTICAL'> {
+  try {
+    const routerRes = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: ROUTER_SYSTEM_PROMPT },
+        { role: "user", content: userMessage }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const raw = routerRes.choices[0].message.content;
+    if (!raw) return 'TACTICAL'; // fallback seguro
+    const parsed = extractJSON(raw);
+    const intent = parsed.intent?.toUpperCase() === 'CASUAL' ? 'CASUAL' : 'TACTICAL';
+    console.log(`[Agente0-Router] Mensaje: "${userMessage}" → Clasificado: ${intent}`);
+    return intent;
+  } catch (error) {
+    console.error("[Agente0-Router] Error en clasificación, defaulting a TACTICAL:", error);
+    return 'TACTICAL'; // si falla, es mejor analizar de más
+  }
+}
+
+export async function processChatStream(
+  userId: string,
+  userMessage: string,
+  history: Message[],
+  res: any  // Response de Express para escribir SSE
+): Promise<{ response: string, interpreter: any }> {
   const context = await getUnifiedContext(userId);
-  const result = await runUnifiedTacticalAI(context, "Genera 3 misiones tácticas", "DASHBOARD");
 
-  const missions = result.missions || [];
+  // ═══ AGENTE 0: EL ROUTER — Clasifica la intención del mensaje ═══
+  res.write(`data: ${JSON.stringify({ status: "Procesando..." })}\n\n`);
+  const intent = await classifyIntent(userMessage);
+  console.log(`[Chat] Mensaje: "${userMessage}" | Intent: ${intent}`);
 
-  if (missions.length > 0) {
-    const cycle = context.cycle;
-    try {
-      await prisma.$transaction([
-        prisma.mission.deleteMany({ where: { userId, isCompleted: false } }),
-        ...missions.map((m: any) => prisma.mission.create({
-          data: {
-            userId,
-            title: m.title,
-            description: m.description,
-            category: m.category,
-            intensity: m.intensity || 'NORMAL',
-            phaseContext: (cycle.phase as string).toUpperCase() as any
-          } as any
-        }))
-      ]);
-      console.log(`[Missions] 3 misiones regeneradas atómicamente para ${userId}`);
-    } catch (err) {
-      console.error("[Missions] Error en transacción:", err);
-    }
+  let interpreterAnalysis: any = null;
+
+  if (intent === 'TACTICAL') {
+    // ═══ MODO TÁCTICO: Corre el Agente 1 (Intérprete) completo ═══
+    const interpreterInstructions = `${INTERPRETER_SYSTEM_PROMPT}
+    Analiza los datos de LA NOVIA y genera tu reporte JSON para El Copiloto.`.trim();
+
+    const mbtiDesc = context.personality?.mbtiType ? (MBTI_DESCRIPTIONS[context.personality.mbtiType as MBTIType] || "") : "";
+    const attachmentDesc = context.personality?.attachmentStyle ? (ATTACHMENT_DESCRIPTIONS[context.personality.attachmentStyle as AttachmentStyle] || "") : "";
+    const phaseContextDesc = PHASE_TACTICAL_CONTEXT[context.cycle.phase as keyof typeof PHASE_TACTICAL_CONTEXT] || "";
+
+    const interpreterInput = `
+    === DATOS DE LA NOVIA ===
+    CICLO DE ELLA: Fase ${context.cycle.phase}, Día ${context.cycle.dayOfCycle}
+    CONTEXTO BIOLÓGICO DE ELLA: ${phaseContextDesc}
+    PERFIL PSICOLÓGICO DE ELLA:
+    - MBTI de ella: ${context.personality?.mbtiType} (${mbtiDesc})
+    - Estilo de apego de ella: ${context.personality?.attachmentStyle} (${attachmentDesc})
+    DATOS VISUALES DE ELLA: ${JSON.stringify(context.vision.technical || {})}
+    
+    === PEDIDO DEL NOVIO ===
+    ${userMessage}
+    `.trim();
+
+    res.write(`data: ${JSON.stringify({ status: "Analizando situación táctica..." })}\n\n`);
+
+    const interpreterRes = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: interpreterInstructions },
+        { role: "user", content: interpreterInput }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const rawInterpreterText = interpreterRes.choices[0].message.content;
+    if (!rawInterpreterText) throw new Error("Agente 1 devolvió null");
+    interpreterAnalysis = extractJSON(rawInterpreterText);
+    console.log(`[Doble-Agente] Análisis de la Intérprete completado.`);
+    console.log(`[DEBUG] Análisis Táctico (Stage 1):`, JSON.stringify(interpreterAnalysis).slice(0, 150) + "...");
+  } else {
+    console.log(`[Agente0-Router] Intent CASUAL → Saltando Intérprete. Solo Copiloto.`);
   }
 
-  return missions;
+  // ═══ AGENTE 2: EL COPILOTO (siempre corre) ═══
+  res.write(`data: ${JSON.stringify({ status: intent === 'CASUAL' ? "Conectando..." : "Generando respuesta táctica..." })}\n\n`);
+
+  const visionDesc = context.vision.descriptive || "No hay datos visuales recientes.";
+
+  console.log(`[Doble-Agente] Iniciando Etapa 2: El Copiloto (habla con el NOVIO)...`);
+
+  // Las instrucciones cambian según el modo
+  let copilotInstructions: string;
+  let copilotInput: string;
+
+  if (intent === 'CASUAL') {
+    // ═══ MODO CASUAL: El Copiloto habla como un amigo, sin data táctica pesada ═══
+    copilotInstructions = `${COPILOT_SYSTEM_PROMPT}
+MODO: CONVERSACIÓN CASUAL
+El novio te está hablando de forma casual (saludando, preguntando algo general, etc.).
+Respóndele como un amigo — con energía, calidez y personalidad.
+Si te saluda, salúdalo de vuelta y pregúntale cómo le va o en qué lo puedes ayudar.
+NO lances tácticas ni consejos sobre su novia a menos que él te lo pida.
+Sé breve, natural y humano.
+FORMATO: Texto plano, sin JSON, sin markdown. Máximo 25 palabras.`.trim();
+
+    copilotInput = `EL NOVIO te dice: "${userMessage}"
+
+Respóndele de forma natural y amigable. Es solo una conversación casual.`;
+  } else {
+    // ═══ MODO TÁCTICO: El Copiloto usa la inteligencia de la Intérprete ═══
+    copilotInstructions = `${COPILOT_SYSTEM_PROMPT}
+MODO: CHAT TÁCTICO
+El novio te pide consejo o te cuenta una situación. Usa la inteligencia de La Intérprete para aconsejarle.
+Recuerda: toda la info es sobre SU NOVIA. Tú le aconsejas a ÉL cómo actuar.
+FORMATO: Texto plano, sin JSON, sin markdown. Máximo 35 palabras.`.trim();
+
+    copilotInput = `EL NOVIO (tu usuario) te dice: "${userMessage}"
+
+INTELIGENCIA SOBRE SU NOVIA (de La Intérprete, para que tú le aconsejes a él):
+- Estado emocional de ella: ${interpreterAnalysis?.real_state || 'N/A'}
+- Lo que ella necesita sin decirlo: ${interpreterAnalysis?.hidden_need || 'N/A'}
+- Consejo táctico para el novio: ${interpreterAnalysis?.tactical_note || 'N/A'}
+- Cómo se veía ella últimamente: ${visionDesc}
+
+Responde al NOVIO directamente. Tú eres su coach, él es tu hermano.`;
+  }
+
+  // Solo pasamos historial limpio (últimos 4 mensajes para no contaminar)
+  const cleanHistory = history.slice(-4);
+
+  const copilotMessages: any[] = [
+    { role: "system", content: copilotInstructions },
+    ...cleanHistory,
+    { role: "user", content: copilotInput }
+  ];
+
+  const stream = await openai.chat.completions.create({
+    model: MODEL,
+    messages: copilotMessages,
+    stream: true
+  });
+
+  console.log(`[DEBUG] Stream de OpenAI iniciado. Transmitiendo tokens...`);
+  let fullResponse = '';
+  for await (const chunk of stream) {
+    const token = chunk.choices[0]?.delta?.content || '';
+    if (token) {
+      fullResponse += token;
+      res.write(`data: ${JSON.stringify({ token })}\n\n`);
+    }
+  }
+  console.log(`[DEBUG] Stream completado. Longitud: ${fullResponse.length} caracteres.`);
+  console.log(`[DEBUG] RESPUESTA COPILOTO: "${fullResponse}"`);
+
+  // Persistir análisis táctico (solo si se corrió la Intérprete)
+  if (interpreterAnalysis) {
+    await prisma.partnerProfile.update({
+      where: { userId },
+      data: {
+        lastInterpreterAnalysis: interpreterAnalysis,
+        lastVisionDescription: interpreterAnalysis.style_analysis || undefined
+      } as any
+    }).catch(() => { });
+  }
+
+  return {
+    response: cleanTacticalResponse(fullResponse),
+    interpreter: interpreterAnalysis
+  };
 }
+
 

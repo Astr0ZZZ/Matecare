@@ -12,10 +12,9 @@ import { useToast } from '../../context/ToastContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Chat() {
-  const { mensajes, enviarMensaje, cargando } = useAIChat();
+  const { mensajes, enviarMensaje, cargando, limpiarHistorial } = useAIChat();
   const { showError } = useToast();
   const [inputText, setInputText] = useState('');
-  const [faseActual, setFaseActual] = useState('DESCONOCIDA');
   const { theme } = useTheme();
   const flatListRef = useRef<FlatList>(null);
 
@@ -48,37 +47,12 @@ export default function Chat() {
     });
   };
 
-  useEffect(() => {
-    const fetchPhase = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const data = await apiFetch(`/cycle/current/${user.id}`);
-          if (data && data.phase) {
-            setFaseActual(data.phase);
-          }
-        }
-      } catch (error: any) {
-        if (
-          error.name === 'AbortError' || 
-          error.message === 'Aborted' || 
-          String(error).includes('Aborted')
-        ) {
-          console.log('[Chat] Petición cancelada (Ignorado)');
-          return;
-        }
-        console.error("Error cargando fase para chat:", error);
-        showError("No se pudo sincronizar la fase del ciclo.");
-      }
-    };
-    fetchPhase();
-  }, []);
 
   const handleSend = async () => {
     if (!inputText.trim() || cargando) return;
     const text = inputText;
     setInputText('');
-    await enviarMensaje(text, faseActual);
+    await enviarMensaje(text);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
@@ -92,9 +66,11 @@ export default function Chat() {
         <View style={[styles.header, { backgroundColor: theme?.colors?.card || 'rgba(0,0,0,0.1)', borderBottomColor: theme?.colors?.border || 'rgba(255,255,255,0.1)' }]}>
           <View>
             <Text style={[styles.title, { color: theme?.colors?.accent || '#CFAA3C', fontFamily: theme?.typography?.boldFont }]}>MateCare AI</Text>
-            <Text style={[styles.subtitle, { color: theme?.colors?.textMuted || '#8F8F8F', fontFamily: theme?.typography?.boldFont }]}>Fase: {faseActual}</Text>
+            <Text style={[styles.subtitle, { color: theme?.colors?.textMuted || '#8F8F8F', fontFamily: theme?.typography?.boldFont }]}>Sistema Táctico</Text>
           </View>
-          <View style={[styles.onlineBadge, { borderColor: theme?.colors?.card || 'rgba(0,0,0,0.1)' }]} />
+          <TouchableOpacity onPress={limpiarHistorial} style={{ padding: 8 }}>
+            <Ionicons name="trash-outline" size={20} color={theme?.colors?.textMuted || '#8F8F8F'} />
+          </TouchableOpacity>
         </View>
 
         <KeyboardAvoidingView 

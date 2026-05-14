@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
 import { apiFetch } from '../../services/api';
+import { useFocusEffect } from 'expo-router';
 import { MotiView } from 'moti';
 import { useTheme } from '../../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,9 +28,11 @@ export default function CalendarScreen() {
   const [cycleInfo, setCycleInfo] = useState(null);
   const [missionHistory, setMissionHistory] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchCycleData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCycleData();
+    }, [])
+  );
 
   const fetchCycleData = async () => {
     try {

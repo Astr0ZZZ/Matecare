@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../context/ToastContext';
+import { supabase } from '../lib/supabase';
+import { fetch as fetchStream } from 'react-native-fetch-api';
 
 export interface Message {
   id: string;
@@ -73,50 +75,86 @@ export const useAIChat = () => {
   }, [mensajes]);
 
   const enviarMensaje = async (texto: string, faseActual: string) => {
-    const nuevoMensaje: Message = { 
-      id: Date.now().toString(), 
-      text: texto, 
+    const nuevoMensaje: Message = {
+      id: Date.now().toString(),
+      text: texto,
       emisor: 'usuario',
       timestamp: Date.now()
     };
-    
+
     setMensajes((prev) => [...prev, nuevoMensaje]);
     setCargando(true);
 
+    // Placeholder del mensaje IA que se va llenando
+    const aiMsgId = (Date.now() + 1).toString();
+    setMensajes((prev) => [...prev, {
+      id: aiMsgId,
+      text: '',
+      emisor: 'ia',
+      timestamp: Date.now()
+    }]);
+
     try {
-      const data = await apiFetch('/ai/chat', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+      const baseUrl = API_URL?.endsWith('/api') ? API_URL : `${API_URL}/api`;
+
+      const response = await fetchStream(`${baseUrl}/ai/chat/stream`, {
         method: 'POST',
-        body: JSON.stringify({ 
-          mensaje: texto, 
-          faseActual: faseActual,
-          history: mensajes.slice(-10).map(m => ({ // Enviar solo últimos 10 para contexto
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          mensaje: texto,
+          faseActual,
+          history: mensajes.slice(-6).map(m => ({
             role: m.emisor === 'usuario' ? 'user' : 'assistant',
-            content: m.text
+            content: m.text.slice(0, 150)
           }))
-        }),
+        })
       });
 
-      setMensajes((prev) => [
-        ...prev, 
-        { 
-          id: (Date.now() + 1).toString(), 
-          text: data.response || data.respuesta, 
-          emisor: 'ia',
-          timestamp: Date.now()
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      // [FALLBACK PARA REACT NATIVE / HERMES]
+      // Hermes no soporta ReadableStream de forma nativa. Esperamos el texto completo.
+      const text = await response.text();
+      const lines = text.split('\n').filter((l: string) => l.startsWith('data: '));
+
+      let mensajeFinalIA = '';
+      
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line.slice(6));
+
+          // Solo acumulamos los tokens que son parte de la respuesta
+          if (parsed.token && parsed.token !== "Límite táctico alcanzado. Reflexiona sobre las tácticas entregadas.") {
+            mensajeFinalIA += parsed.token;
+          }
+          
+          if (parsed.error) {
+            mensajeFinalIA = parsed.token || "Error de conexión.";
+          }
+        } catch (e) {
+          // Ignorar
         }
-      ]);
+      }
+
+      // Actualizamos la UI una sola vez con el mensaje limpio
+      setMensajes((prev) => prev.map(m =>
+        m.id === aiMsgId ? { ...m, text: mensajeFinalIA || "Táctica establecida." } : m
+      ));
+
     } catch (error) {
       console.error(error);
       showError("Se perdió el enlace con el Oráculo AI.");
-      setMensajes((prev) => [
-        ...prev, 
-        { 
-          id: (Date.now() + 1).toString(), 
-          text: "⚠️ Error de conexión con el centro de mando. Por favor, reintenta.", 
-          emisor: 'ia',
-          timestamp: Date.now()
-        }
-      ]);
+      setMensajes((prev) => prev.map(m =>
+        m.id === aiMsgId
+          ? { ...m, text: "⚠️ Error de conexión con el centro de mando. Por favor, reintenta." }
+          : m
+      ));
     } finally {
       setCargando(false);
     }

@@ -78,10 +78,9 @@ export default function MissionCard({
         const { data: { user } } = await supabase.auth.getUser();
         const publicUrl = await uploadMissionPhoto(userId, id, result.assets[0].uri);
 
-        const res = await apiFetch('/api/missions/evidence', {
+        const res = await apiFetch(`/missions/${id}/evidence`, {
           method: 'POST',
           body: JSON.stringify({ 
-            missionId: id, 
             imageUrl: publicUrl,
             userId 
           }),

@@ -159,7 +159,7 @@ export default function Profile() {
             <Text style={[styles.signOutText, { fontFamily: theme?.typography?.boldFont }]}>CERRAR SESIÓN TÁCTICA</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.versionText, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>MATECARE v1.0.0 - GEMINI 3 ENGINE</Text>
+          <Text style={[styles.versionText, { color: theme?.colors?.textMuted || '#8F8F8F' }]}>MATECARE v1.0.0 - GPT-5 NANO</Text>
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>

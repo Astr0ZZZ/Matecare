@@ -53,12 +53,7 @@ export default function CycleDetails() {
             </View>
           </View>
 
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.cardTitle, { color: theme.colors.accent }]}>ESTADO DE SALUD</Text>
-            <Text style={[styles.bodyText, { color: theme.colors.text }]}>
-              Regularidad: {data?.isIrregular ? 'Irregular' : 'Regular'}
-            </Text>
-          </View>
+
 
         </ScrollView>
       </SafeAreaView>

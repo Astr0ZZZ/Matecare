@@ -3,10 +3,11 @@ import { supabase } from '../lib/supabase';
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const ENDPOINT_TIMEOUTS: Record<string, number> = {
-  '/ai/vision-chat': 45_000,       
-  '/ai/chat': 30_000,              
-  '/ai/recommendation': 45_000,    
-  '/dashboard': 45_000,            
+  '/ai/vision-chat': 90_000,   // era 45_000
+  '/ai/chat': 90_000,          // era 30_000 — CAUSA RAÍZ: mataba la petición antes de que respondiera la IA
+  '/ai/recommendation': 60_000,
+  '/dashboard': 45_000,
+  '/missions/reset': 90_000,   // reset también usa doble agente
   default: 25_000,
 };
 

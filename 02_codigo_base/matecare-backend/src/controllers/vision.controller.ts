@@ -42,18 +42,19 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
     // 2. Procesar con el sistema de dos agentes
     const { response: aiResponse, vision: computedVision, styleAnalysis, interpreter } = await processChat(userId, finalUserMessage, image, []);
 
-    // 3. Fallback de visión
-    const vision = computedVision || neutralVisionContext();
+    // 3. Fallback de visión y detección de Python Offline
+    const pythonOffline = typeof computedVision === 'string';
+    const vision = pythonOffline ? neutralVisionContext() : (computedVision || neutralVisionContext());
 
     // 4. PERSISTENCIA TÁCTICA
     try {
       await prisma.partnerProfile.update({
         where: { userId },
         data: {
-          visualStyle: humanize(vision.environment_context),
+          visualStyle: vision.style || vision.estimated_style || "Casual", // Ahora guarda ESTILO, no entorno
           visionAnalysis: vision,
           lastVisionDescription: styleAnalysis,
-          lastInterpreterAnalysis: interpreter, // ¡IMPORTANTE! Sincronizamos los chips
+          lastInterpreterAnalysis: interpreter, 
           lastAdvice: aiResponse
         } as any
       });
@@ -84,6 +85,7 @@ export const handleVisionChat = async (req: AuthRequest, res: Response) => {
       response: aiResponse,
       interpreter, // Enviamos el análisis fresco al móvil
       vision: { ...vision, v3_active: true, debug_note: "SISTEMA V3 ACTIVO - DATOS SINCRONIZADOS" },
+      pythonOffline, // Indicador para el UI si el backend de Python está caído
       state: await calculateCycleState(profile.lastPeriodDate, profile.cycleLength, profile.periodDuration)
     });
   } catch (error) {

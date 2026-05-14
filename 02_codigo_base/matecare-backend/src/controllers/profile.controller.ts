@@ -129,8 +129,13 @@ export const getProfile = async (req: Request, res: Response) => {
 
     res.status(200).json({ 
       ...profile,
-      visualStyle: humanize((profile as any).visualStyle || ""),
-      lastEmotion: humanize((profile as any).visionAnalysis?.dominant_emotion || ""),
+      // Mapeo ultra-robusto para no perder datos viejos ni nuevos
+      visualStyle: (profile as any).visualStyle || (profile as any).visionAnalysis?.style || (profile as any).visionAnalysis?.estimated_style || "No calibrado",
+      lastEmotion: (profile as any).visionAnalysis?.dominantEmotion || 
+                   (profile as any).visionAnalysis?.dominant_emotion || 
+                   (profile as any).visionAnalysis?.emotional_tone || 
+                   "Neutral",
+      lastVisionDescription: (profile as any).lastVisionDescription || null,
       mbti: humanizedPersonality, 
       points: profile.user?.points || 0 
     });

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { calculateCycleState } from '../services/cycleEngine.service';
-import { generateMissions } from '../services/ai.service';
+import { getOracleAdvice } from '../services/ai.service';
 import { POINTS_ECONOMY } from '../services/points.service';
 
 export const getSuggestedMissions = async (req: Request, res: Response) => {
@@ -26,7 +26,7 @@ export const getSuggestedMissions = async (req: Request, res: Response) => {
     }
 
     // Generar misiones si faltan
-    await generateMissions(userId);
+    await getOracleAdvice(userId);
     
     const newMissions = await prisma.mission.findMany({
       where: { userId, isCompleted: false },
@@ -53,10 +53,11 @@ export const resetMissions = async (req: Request, res: Response) => {
       where: { userId, isCompleted: false }
     });
 
-    await generateMissions(userId);
+    await getOracleAdvice(userId, false, true); // forceRegenerate = true para bypass cache
     
     const newMissions = await prisma.mission.findMany({
       where: { userId, isCompleted: false },
+      orderBy: { createdAt: 'desc' },
       take: 3
     });
 
@@ -120,5 +121,35 @@ export const getMissionHistory = async (req: Request, res: Response) => {
   }
 };
 
+export const submitMissionEvidence = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { evidenceBase64, note } = req.body;
+  const userId = (req as any).user?.id || req.body.userId;
 
+  try {
+    const mission = await prisma.mission.findUnique({ where: { id } });
+    if (!mission) return res.status(404).json({ error: 'Mission not found' });
+    if (mission.userId !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
+    const updatedMission = await prisma.mission.update({
+      where: { id },
+      data: {
+        progress: 100,
+        isCompleted: true,
+        completedAt: new Date()
+      }
+    });
+
+    if (!mission.isCompleted) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { points: { increment: POINTS_ECONOMY.MISSION_COMPLETED } }
+      });
+    }
+
+    const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
+    res.json({ mission: updatedMission, newPoints: updatedUser?.points ?? 0, success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to submit evidence' });
+  }
+};

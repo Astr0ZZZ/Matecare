@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
 import PhaseCard from '../../components/PhaseCard';
 import CycleCompassHUD from '../../components/CycleCompassHUD';
@@ -31,6 +32,10 @@ export default function Dashboard() {
   const [isWaitingForAI, setIsWaitingForAI] = useState(false);
 
   const pollInterval = useRef<any>(null);
+  const pollCount = useRef(0);
+  const lastVisionTimestamp = useRef<string | null>(null);
+
+
 
   const fetchData = useCallback(async (isPolling = false) => {
     if (!user?.id) return;
@@ -53,7 +58,18 @@ export default function Dashboard() {
           setIsWaitingForAI(true);
           if (!pollInterval.current) {
             console.log('[DASHBOARD] IA en proceso. Iniciando polling suave...');
-            pollInterval.current = setInterval(() => fetchData(true), 5000);
+            pollCount.current = 0;
+            pollInterval.current = setInterval(() => {
+              if (pollCount.current >= 20) {
+                if (pollInterval.current) clearInterval(pollInterval.current);
+                pollInterval.current = null;
+                setIsWaitingForAI(false);
+                console.log('[DASHBOARD] Max polling alcanzado (60s). Deteniendo.');
+                return;
+              }
+              pollCount.current++;
+              fetchData(true);
+            }, 5000);
           }
         } else {
           setIsWaitingForAI(false);
@@ -77,6 +93,19 @@ export default function Dashboard() {
     }
   }, [user?.id]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const checkVisionUpdate = async () => {
+        const storedTimestamp = await AsyncStorage.getItem('lastVisionUpdate');
+        if (storedTimestamp && storedTimestamp !== lastVisionTimestamp.current) {
+          lastVisionTimestamp.current = storedTimestamp;
+          fetchData(); // Reload dashboard
+        }
+      };
+      checkVisionUpdate();
+    }, [fetchData])
+  );
+
   useEffect(() => {
     fetchData();
     return () => {
@@ -90,6 +119,11 @@ export default function Dashboard() {
   };
 
   const handleUpdateMission = async (id: string, currentProgress: number) => {
+    if (id.startsWith('fb-')) {
+      showError("Aún sincronizando con el oráculo. Misiones de ejemplo no completables.");
+      return;
+    }
+
     const newProgress = currentProgress >= 100 ? 0 : 100;
     try {
       const data = await apiFetch(`/missions/${id}/progress`, {

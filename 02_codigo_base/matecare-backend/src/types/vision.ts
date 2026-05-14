@@ -25,4 +25,18 @@ export interface VisionContext {
   isSuppressed?: boolean;
   hasDiscrepancy?: boolean;
   confidence?: number;
+
+  // Nuevos Campos V2 (Capas de Visión Paralela)
+  energyAppearance?: string;
+  bodyLanguage?: string;
+  activityLevel?: string;
+  isIndoor?: boolean;
+  sceneCategory?: string;
+  lightCondition?: string;
+  timeOfDayHint?: string;
+  ambientMood?: string;
+  clothingTone?: string;
+  authenticityLabel?: string;
+  estimatedAge?: number;
+  allEmotions?: Record<string, number>;
 }
